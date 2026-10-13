@@ -147,3 +147,45 @@ Strings in the same region reveal the implementation details:
 In other words: beyond `PhantomCursor` / `AXDispatch` / `CollisionWatch` there is another layer of **interfaces aimed at "looking at the screen"** (region capture, excluding given apps, display preparation, installed-app listing), and "which apps should be kept out of the frame" is made into a parameter.
 
 > Still not verified: the correspondence between these methods and their call sites on the JS side (the same strings cannot be found in the JS corpus, which suggests they are bridged dynamically through the ObjC runtime), and the exact purpose of `chicagoRegister/Unregister/NotifyExpectedEscapeMethod` — **inferred** to relate to the "interrupt / escape" mechanism.
+
+## 11. Addendum: why decompilation "failed" — two different causes (with Ghidra source evidence)
+
+Across 5,217 functions the failures and warnings fall into two classes of **completely different nature**:
+
+### A. Hard failures = timeouts, not incapability (3 functions, all recovered)
+
+Three functions first reported `decompile incomplete: Exception while decompiling …: process: timeout`. Raising the per-function budget from 90 s to 400 s recovered all three. Measured wall time (including ~25–35 s of JVM + Ghidra startup):
+
+| Function | Size | Measured total | Decompilation alone |
+|---|---|---|---|
+| `FUN_0005bc3c` (input) | 696 B | 153 s | ~120 s |
+| `FUN_0005bef4` (input) | 1,136 B | 130 s | ~100 s |
+| `FUN_000478f0` (audio) | 2,132 B | 179 s | ~150 s |
+
+**Why so slow for such small functions**: all three carry `Type propagation algorithm not settling`. In Ghidra's decompiler source that warning fires when the type-propagation pass repeats **≥7 times without converging** (`coreaction.cc:5441`; the comment reads `This constant arrived at empirically`). The time goes into the type fixpoint iteration, not into function size — a 696-byte function taking ~120 s is the proof. All three are 284–476 lines of pseudocode with 5–10 `while` loops, 4–7 `goto`s and no `switch`.
+
+> Conclusion: a **budget problem**, fixed by raising the budget. It is not "this function cannot be decompiled".
+
+### B. Quality limit = computed indirect jumps (861 occurrences, permanent)
+
+`/* WARNING: Could not recover jumptable at <addr>. Too many branches */` appears **861 times** (per function: cua 488/2817 = 17.3%, input 213/1821 = 11.7%, audio 133/579 = 23.0%).
+
+Evidence from Ghidra's own C++ source (shipped with the install):
+
+- The warning comes from `JumpTable::recoverAddresses()` at `jumptable.cc:2642`, thrown when every jump model fails.
+- The chain is `JumpAssisted` (CALLOTHER-style) → `JumpBasic` → `JumpBasic2` (`jumptable.cc:2287-2302`), each bounded by `max_jumptable_size`.
+
+**The trigger is that the binary genuinely contains computed branches.** Example: `swift56override_swift_task_future_wait` at 0x1b7c, with the warning pointing at 0x1c50 — where the raw bytes are `00 00 1f d6`, i.e. **`br x0`**: a tail dispatch through a register. Swift tail dispatch / coroutine resume, Rust `match` lowering and C++ thunks all emit this, and the target set cannot be enumerated statically.
+
+**Consequence**: that jump table degrades into an opaque indirect jump in the pseudocode (Ghidra adds `Treating indirect jump as call`), while the rest of the function still decompiles. It is also the usual reason arm64 shows more jump-table warnings than x86: `br` is a register-indirect jump with no `jmp [table + idx*8]` memory operand for the analyzer to follow.
+
+### C. Other quality warnings (whole corpus)
+
+| Warning | Count | Meaning |
+|---|---|---|
+| `Type propagation algorithm not settling` | 32 | type fixpoint iterated ≥7 times without converging (a time-cost signal) |
+| `Removing unreachable block` | 110 | statically unreachable blocks (including code after `noreturn`) |
+| `Control flow encountered bad instruction data` | 13 | disassembly treated data as code |
+| `Unknown calling convention` | 133 | missing symbol/ABI information (stripped Rust/C++ internal functions) |
+
+> In one line: **"failure" comes in two kinds — budgetary (timeout, fixed by a bigger budget) and structural (computed indirect jumps whose targets cannot be enumerated). The latter does not stop pseudocode from being produced; it only leaves the control flow incomplete.**

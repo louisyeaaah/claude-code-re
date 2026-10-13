@@ -145,3 +145,45 @@ chicago-hide / chicago-open（Swift 闭包里的字符串对）
 也就是说：在 `PhantomCursor` / `AXDispatch` / `CollisionWatch` 之外，还有一层**面向"看屏幕"的接口**（区域截图、排除指定 App、显示器准备、已安装 App 列表），并把"哪些 App 该被排除在画面外"做成参数。
 
 > 仍未验证：这些方法与 JS 侧调用点的对应关系（JS 语料里搜不到同名字符串，说明经 ObjC runtime 动态桥接），以及 `chicagoRegister/Unregister/NotifyExpectedEscapeMethod` 的确切用途——**推断**与"中断/逃生"机制有关。
+
+## 11. 补记：反编译"失败"的两类原因（附 Ghidra 源码依据）
+
+跑完 5,217 个函数后，失败/告警分两类，**性质完全不同**：
+
+### A. 硬失败 = 超时，不是能力不足（3 个函数，已全部恢复）
+
+三个函数最初报 `decompile incomplete: Exception while decompiling …: process: timeout`。把单函数预算从 90 s 放宽到 400 s 后**全部成功**。实测它们真正需要的时间（含 JVM + Ghidra 启动约 25–35 s）：
+
+| 函数 | 大小 | 实测总耗时 | 反编译本身约 |
+|---|---|---|---|
+| `FUN_0005bc3c`（input） | 696 B | 153 s | ~120 s |
+| `FUN_0005bef4`（input） | 1,136 B | 130 s | ~100 s |
+| `FUN_000478f0`（audio） | 2,132 B | 179 s | ~150 s |
+
+**为什么小函数这么慢**：它们的输出里都带 `Type propagation algorithm not settling`。Ghidra 反编译器源码里这条告警的触发条件是类型传播 pass 重复 **≥7 次仍未收敛**（`coreaction.cc:5441`，注释原文 `This constant arrived at empirically`）。也就是说时间花在类型不动点迭代上，与函数体积无关——696 字节的函数跑 ~120 s 就是证据。这三者都是 284–476 行伪代码、含 5–10 个 `while` 与 4–7 个 `goto`、无 `switch` 的循环/状态机式函数。
+
+> 结论：这是**预算问题**，放宽即可；不存在"这个函数反编译不了"。
+
+### B. 质量类限制 = 计算型间接跳转（861 处，永久）
+
+`/* WARNING: Could not recover jumptable at <addr>. Too many branches */` 共 **861 处**（按函数计：cua 488/2817 = 17.3%、input 213/1821 = 11.7%、audio 133/579 = 23.0%）。
+
+Ghidra 源码依据（随安装包一起提供 C++ 源码）：
+
+- 该告警出自 `jumptable.cc:2642` 的 `JumpTable::recoverAddresses()`：当所有跳转模型都失败时抛出。
+- 尝试链是 `JumpAssisted`（CALLOTHER 型）→ `JumpBasic` → `JumpBasic2`（`jumptable.cc:2287-2302`），每个都受 `max_jumptable_size` 上限约束。
+
+**触发原因是二进制里确实是计算型跳转**。示例：`swift56override_swift_task_future_wait` 在 0x1b7c，告警指向 0x1c50，该处原始字节是 `00 00 1f d6`，即 **`br x0`** —— 目标在寄存器里的尾部分派。Swift 的 tail dispatch / 协程恢复、Rust 的 `match` 降级、C++ thunk 都会生成这种跳转；静态上无法枚举目标集合。
+
+**后果**：那张跳转表在伪代码里退化成不透明间接跳转（Ghidra 会补一句 `Treating indirect jump as call`），但函数其余逻辑照常还原。这也是 arm64 上"跳转表告警比例高于 x86"的常见原因——`br` 是寄存器间接跳转，没有 x86 那种 `jmp [table + idx*8]` 的显式内存操作数形态。
+
+### C. 其它质量告警（全库计数）
+
+| 告警 | 次数 | 含义 |
+|---|---|---|
+| `Type propagation algorithm not settling` | 32 | 类型不动点迭代 ≥7 次未收敛（时间开销的信号） |
+| `Removing unreachable block` | 110 | 存在静态不可达块（含 `noreturn` 之后的代码） |
+| `Control flow encountered bad instruction data` | 13 | 反汇编把数据当成了代码 |
+| `Unknown calling convention` | 133 | 符号/ABI 信息缺失（剥离过的 Rust/C++ 内部函数） |
+
+> 一句话总结：**"失败"分两种——预算性的（超时，放宽即可）与结构性的（计算型间接跳转，无法静态枚举目标）。后者不阻止出伪代码，只是让控制流不完整。**
