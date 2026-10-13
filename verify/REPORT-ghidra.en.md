@@ -189,3 +189,34 @@ Evidence from Ghidra's own C++ source (shipped with the install):
 | `Unknown calling convention` | 133 | missing symbol/ABI information (stripped Rust/C++ internal functions) |
 
 > In one line: **"failure" comes in two kinds — budgetary (timeout, fixed by a bigger budget) and structural (computed indirect jumps whose targets cannot be enumerated). The latter does not stop pseudocode from being produced; it only leaves the control flow incomplete.**
+
+## 12. Results after maxing out the budget (2026-10-14 re-run)
+
+Re-ran all three libraries with everything opened up: **a fresh project plus a 7200 s/file analysis timeout** (default 300 s), **1200 s per function** (default 90 s), **jump-table cap 16384** (default 1024), maxInstructions 20M, maxPayload 512 MB. Scripts: [`tools/run_ghidra_max.sh`](../tools/run_ghidra_max.sh) and [`ghidra-scripts/DumpDecompMax.java`](../ghidra-scripts/DumpDecompMax.java).
+
+| Library | Functions | Incomplete | Jump-table warnings | Type-propagation | Decompiled text | Slow (≥20 s) |
+|---|---|---|---|---|---|---|
+| cua (Swift) | 2817 → 2817 | 0 → 0 | 491 → **491** | 5 → 5 | 4.45 → 4.45 MB | 0 (worst 8 s) |
+| input (Rust) | 1821 → 1821 | **2 → 0** | 235 → **235** | 13 → 15 | 3.74 → 3.71 MB | 2 (worst 153 s) |
+| audio (C++) | 579 → 579 | **1 → 0** | 135 → **135** | 14 → 15 | 1.83 → 1.82 MB | 2 (worst 175 s) |
+
+**Finding 1: budget fixes timeouts, not structural limits.**
+- The three previously incomplete functions (`FUN_0005bc3c`, `FUN_0005bef4`, `FUN_000478f0`) went from an 80-character stub to 7–11 KB of full pseudocode — that is what budget buys.
+- Not a single jump-table warning disappeared (491/235/135, identical per function to round one): they were never blocked by the 1024-entry cap or by time — **the targets genuinely cannot be computed** (`br xN` register-indirect jumps). Raising the cap 16× and the time 13× changes nothing, so this is now experimental rather than inferred.
+
+**Finding 2: typing quality improved slightly.** Per-function comparison (hash after stripping whitespace/comments):
+
+| Library | Comparable functions (unique names) | Identical | Different | Fixed | Worse |
+|---|---|---|---|---|---|
+| cua | 2091 | 1821 | 270 | 0 | 0 |
+| input | 1792 | 1711 | 81 | 2 | 0 |
+| audio | 578 | 553 | 25 | 1 | 0 |
+
+The differences fall into two kinds, **both spot-checked**:
+- **Cosmetic** (most): variable numbering and type spelling, e.g. `AXWindow AVar9` → `AVar7`, `long *` → `qword *`, `uVar5` ↔ `uVar6`; the same lines and structure.
+- **Genuine improvement**: some functions go from `undefined8 uVar2;` to concrete types and symbol names, e.g. `pthread_mutex_t *ppVar1; ppVar1 = _malloc(0x40);`. Corpus-wide `undefined*` occurrences: input −2.8%, audio −3.5%, cua −0.1%.
+- **No function got worse or fell back to incomplete.**
+
+**Finding 3: one hypothesis refuted.** I suspected the jump-table failures came from unrelocated Mach-O pointers. Decoding the `LC_DYLD_INFO_ONLY` rebase stream: macho1 has 1,797 slots needing rebasing, but their on-disk values (e.g. `0x7851c`) are already **valid pre-slide vmaddrs for a base-0 image** (arm64 Mach-O adds the slide at load time) ⇒ **not a relocation problem**, consistent with Finding 1.
+
+**Reproduce**: `bash tools/run_ghidra_max.sh` (~15 minutes, writes `out/max-{cua,input,audio}.txt`); comparison via `tools/compare_ghidra_runs.py` and `tools/diff_decomp_runs.py`.

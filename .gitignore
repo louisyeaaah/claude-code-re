@@ -23,3 +23,4 @@ verify/*.json
 # 动态验证用的 Claude Code 配置目录（含本机会话记录）
 verify/cfg/
 verify/run/
+ghidra-proj-max/
