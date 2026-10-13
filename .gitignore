@@ -1,0 +1,25 @@
+# ─── 不发布：Claude Code 的源码语料与二进制产物 ───────────────────────────
+# 原始语料（2174 个内嵌 JS 模块，41.6 MB）
+raw/
+# 反编译输出（原生库的 C 代码，约 10 MB）
+out/
+# 二进制切片与嵌入的原生库
+work/
+# 本机提取时的中间产物
+/assets/
+*.bin
+ghidra-proj/
+ghidra-cfg/
+.chrome-tmp/
+# 跨版本提取的大文件（脚本可复现）
+evolution/v2.1.*/
+evolution/bundle-*.txt
+evolution/diffs.txt
+# 动态验证的原始请求体（含本机会话内容，只保留结论）
+verify/captured/
+verify/server.log
+verify/*.json
+.DS_Store
+# 动态验证用的 Claude Code 配置目录（含本机会话记录）
+verify/cfg/
+verify/run/

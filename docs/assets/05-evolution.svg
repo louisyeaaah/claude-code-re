@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" width="100%" role="img" aria-label="version evolution">
+<rect width="960" height="430" fill="#f8fafc"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/></marker><marker id="ahg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/></marker></defs>
+<text x="28" y="40" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#111827">Six releases in three weeks: code grows, prompt prose stays frozen</text>
+<line x1="80" y1="240" x2="920" y2="240" stroke="#d1d5db"/>
+<line x1="80" y1="90" x2="80" y2="240" stroke="#d1d5db"/>
+<rect x="58.0" y="121.70454545454545" width="44" height="118.29545454545455" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="80.0" y="260" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="600" text-anchor="middle">2.1.272</text>
+<text x="80.0" y="276" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">1735 mod</text>
+<text x="80.0" y="290" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">35.0M ch</text>
+<rect x="226.0" y="98.79545454545453" width="44" height="141.20454545454547" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="248.0" y="260" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="600" text-anchor="middle">2.1.282</text>
+<text x="248.0" y="276" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">2071 mod</text>
+<text x="248.0" y="290" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">39.2M ch</text>
+<rect x="394.0" y="93.27272727272728" width="44" height="146.72727272727272" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="416.0" y="260" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="600" text-anchor="middle">2.1.283</text>
+<text x="416.0" y="276" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">2152 mod</text>
+<text x="416.0" y="290" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">40.1M ch</text>
+<rect x="562.0" y="92.31818181818181" width="44" height="147.6818181818182" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="584.0" y="260" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="600" text-anchor="middle">2.1.284</text>
+<text x="584.0" y="276" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">2166 mod</text>
+<text x="584.0" y="290" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">40.8M ch</text>
+<rect x="730.0" y="94.22727272727272" width="44" height="145.77272727272728" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="752.0" y="260" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="600" text-anchor="middle">2.1.286</text>
+<text x="752.0" y="276" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">2138 mod</text>
+<text x="752.0" y="290" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">40.5M ch</text>
+<rect x="898.0" y="91.8409090909091" width="44" height="148.1590909090909" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="920.0" y="260" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="600" text-anchor="middle">2.1.287</text>
+<text x="920.0" y="276" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">2173 mod</text>
+<text x="920.0" y="290" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" font-weight="400" text-anchor="middle">41.2M ch</text>
+<polyline points="80.0,115.10714285714286 248.0,99.82142857142858 416.0,96.78571428571428 584.0,94.46428571428572 752.0,95.5 920.0,92.92857142857142" fill="none" stroke="#d97706" stroke-width="2.5"/>
+<circle cx="80.0" cy="115.10714285714286" r="4" fill="#d97706"/>
+<circle cx="248.0" cy="99.82142857142858" r="4" fill="#d97706"/>
+<circle cx="416.0" cy="96.78571428571428" r="4" fill="#d97706"/>
+<circle cx="584.0" cy="94.46428571428572" r="4" fill="#d97706"/>
+<circle cx="752.0" cy="95.5" r="4" fill="#d97706"/>
+<circle cx="920.0" cy="92.92857142857142" r="4" fill="#d97706"/>
+<text x="86" y="82" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#2563eb" font-weight="400" text-anchor="start">bars = modules</text>
+<text x="200" y="82" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#d97706" font-weight="400" text-anchor="start">line = source chars (M)</text>
+<rect x="28" y="300" width="904" height="112" rx="10" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="1.5"/>
+<text x="42" y="324" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">prompt wording: essentially unchanged</text>
+<text x="42" y="344" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">7 sections byte-identical across all six releases (# Executing actions with care, # Text output, # Writing for the user,</text>
+<text x="42" y="360" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280"># Delivering work, # Corrections, # Context management, # Communicating with the user)</text>
+<text x="42" y="376" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280"># Doing tasks / # Tone and style / # Harness / # System differ only by added conditional ${...} fragments</text>
+<text x="42" y="392" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">only new subsystem: memory (MEMORY.md index constants appear for the first time in 2.1.287)</text>
+</svg>

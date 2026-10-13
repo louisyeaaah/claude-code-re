@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="100%" role="img" aria-label="multi-agent architecture">
+<rect width="960" height="560" fill="#f8fafc"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/></marker><marker id="ahg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/></marker></defs>
+<text x="28" y="40" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#111827">Multi-agent: coordinator, workers, shared task board</text>
+<text x="28" y="62" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280" font-weight="400" text-anchor="start">Agent tool (alias Task) · 6 built-in subagent types + custom .claude/agents/*.md</text>
+<rect x="28" y="84" width="904" height="86" rx="10" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1.5"/>
+<text x="42" y="108" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">coordinator (main session)</text>
+<text x="42" y="128" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">phases:  Research (workers ∥)  →  Synthesis (coordinator only)  →  Implementation  →  Verification</text>
+<text x="42" y="144" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">&quot;Always synthesize — your most important job&quot;: never write &quot;based on your findings&quot;</text>
+<rect x="60" y="200" width="260" height="96" rx="10" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="74" y="224" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">worker · Explore</text>
+<text x="74" y="244" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">read-only, parallel</text>
+<text x="74" y="260" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">returns findings</text>
+<rect x="350" y="200" width="260" height="96" rx="10" fill="#ffffff" stroke="#fcd34d" stroke-width="1.5"/>
+<text x="364" y="224" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">worker · implement</text>
+<text x="364" y="244" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">one per file-set</text>
+<text x="364" y="260" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">write-heavy → serial</text>
+<rect x="640" y="200" width="260" height="96" rx="10" fill="#ffffff" stroke="#6ee7b7" stroke-width="1.5"/>
+<text x="654" y="224" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">worker · verify</text>
+<text x="654" y="244" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">fresh spawn, no implementation</text>
+<text x="654" y="260" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">assumptions: proving ≠ confirming</text>
+<line x1="300" y1="170" x2="190" y2="196" stroke="#2563eb" stroke-width="2" marker-end="url(#ah)"/>
+<text x="245.0" y="177.0" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#2563eb" font-weight="500" text-anchor="middle">spawn</text>
+<line x1="480" y1="170" x2="480" y2="196" stroke="#2563eb" stroke-width="2" marker-end="url(#ah)"/>
+<text x="480.0" y="177.0" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#2563eb" font-weight="500" text-anchor="middle">spawn</text>
+<line x1="660" y1="170" x2="770" y2="196" stroke="#2563eb" stroke-width="2" marker-end="url(#ah)"/>
+<text x="715.0" y="177.0" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#2563eb" font-weight="500" text-anchor="middle">spawn</text>
+<line x1="190" y1="296" x2="300" y2="330" stroke="#059669" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="480" y1="296" x2="480" y2="330" stroke="#059669" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="770" y1="296" x2="660" y2="330" stroke="#059669" stroke-width="2" marker-end="url(#ah)"/>
+<rect x="28" y="336" width="904" height="96" rx="10" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
+<text x="42" y="360" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">results come back as &lt;task-notification&gt; (user-role message)</text>
+<text x="42" y="380" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">task-id · status(completed|failed|killed|blocked) · summary · result · usage</text>
+<text x="42" y="396" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">header: [SYSTEM NOTIFICATION - NOT USER INPUT]   → not the user speaking, and not an approval</text>
+<rect x="28" y="448" width="440" height="92" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+<text x="42" y="472" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">shared task board</text>
+<text x="42" y="492" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">TaskCreate / TaskGet / TaskUpdate / TaskList</text>
+<text x="42" y="508" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">mutually exclusive with TodoWrite (isEnabled)</text>
+<rect x="492" y="448" width="440" height="92" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+<text x="506" y="472" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">hard guarantees</text>
+<text x="506" y="492" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">concurrency 20 · nesting depth 3</text>
+<text x="506" y="508" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">started ≠ finished: 启动返回体里没有结果字段</text>
+</svg>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reverse-engineering Claude Code: prompts, multi-agent design, small clever decisions</title>
+<meta name="description" content="A full offline reverse-engineering of the Claude Code v2.1.287 single-file binary: how the system prompt is assembled, how subagents are orchestrated, context engineering, and the native layer. With diagrams, cross-version diffs and reproducible tooling.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top"><div class="inner">
+  <span class="brand">Claude Code RE</span>
+  <span class="spacer"></span>
+  <nav>
+    <a href="#prompt">Prompts</a>
+    <a href="#agents">Agents</a>
+    <a href="#binary">Binary</a>
+    <a href="#evolution">Evolution</a>
+    <a href="#native">Native</a>
+    <a href="index.html">中文</a>
+    <a href="https://github.com/louisyeaaah/claude-code-re">GitHub ↗</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+<aside>
+  <ol>
+    <li><a href="#overview">At a glance</a></li>
+    <li><a href="#method">Method</a></li>
+    <li><a href="#prompt">How prompts are assembled</a></li>
+    <li><a href="#patterns">How rules are written</a></li>
+    <li><a href="#agents">Multi-agent orchestration</a></li>
+    <li><a href="#context">Context engineering</a></li>
+    <li><a href="#binary">Inside the binary</a></li>
+    <li><a href="#dynamic">Dynamic verification</a></li>
+    <li><a href="#evolution">Six releases</a></li>
+    <li><a href="#native">Native layer &amp; Ghidra</a></li>
+    <li><a href="#lessons">What to steal</a></li>
+    <li><a href="#limits">Limits</a></li>
+  </ol>
+</aside>
+
+<main>
+<h1>Reverse-engineering Claude Code</h1>
+<p class="lede">Taking apart a locally installed Claude Code v2.1.287: how the system prompt is assembled, how subagents are orchestrated, how context is managed, and what the 226 MB binary actually contains. Fully offline static analysis — the binary was never run or modified.</p>
+
+<div class="meta">
+  <b>Target</b>: <code>~/.local/share/claude/versions/2.1.287</code> (Mach-O arm64, 226 MB, Bun-compiled)<br>
+  <b>SHA-256</b>: <code>6eab8333…fcb41ea</code> ｜ BUILD_TIME <code>2026-10-01T16:02:06Z</code> ｜ GIT_SHA <code>3c446a1b…</code><br>
+  <b>Method</b>: carve modules → extract string literals → intercept a real request locally → diff six releases → decompile the native libraries with Ghidra
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="n">2,174</div><div class="k">embedded JS modules</div></div>
+  <div class="stat"><div class="n">41.6 MB</div><div class="k">plain-text source (all prompts)</div></div>
+  <div class="stat"><div class="n">772</div><div class="k">prompt-like literals</div></div>
+  <div class="stat"><div class="n">5,217</div><div class="k">functions decompiled</div></div>
+</div>
+
+<h2 id="overview">At a glance</h2>
+<ol>
+  <li><b>The system prompt is assembled, not written</b>: 6 static blocks plus ~27 dynamic ones; every block has a name, can be <code>null</code> (absent, not empty), and can be toggled.</li>
+  <li><b>Blocking serves caching</b>: the volatile billing header is its own uncached block, identity is its own block, everything else goes into one body block.</li>
+  <li><b>The expression layer is pluggable</b>: Output Styles package "who I am / how I talk" into an object (prompt + per-turn reminder + waiting reminder + whether coding rules survive).</li>
+  <li><b>One intent, three granularities</b>: identity prose shapes, a one-line reminder sustains, a special-case line corrects.</li>
+  <li><b>Rules give conditions, alternatives and examples rather than shouting</b>: <code>e.g.</code> (164) &gt; <code>instead of</code> (111) &gt; <code>unless</code> (92) &gt; <code>NEVER</code> (35).</li>
+  <li><b>Uppercase NEVER is reserved for real incidents</b>: about 18 occurrences.</li>
+  <li><b>Conflicts are adjudicated explicitly</b>: <code>Where these rules conflict with … these rules win.</code></li>
+  <li><b>Harness mechanics are documented in the prompt</b>: who injects <code>&lt;system-reminder&gt;</code>, that tool output can be external, that hook output counts as user feedback.</li>
+  <li><b>An async subagent's return value structurally has no result field</b> — fabricating one has no syntactic outlet.</li>
+  <li><b>Approval cannot be relayed</b>: an approved action must be executed by a freshly spawned agent carrying the user's exact words.</li>
+  <li><b>The prompt is a product surface</b>: large parts sit behind <code>tengu_*</code> feature flags — greyable, revertible, A/B-testable.</li>
+  <li><b>Across three weeks the prompt prose froze</b>: +25% modules, +13% flags, seven sections byte-identical.</li>
+</ol>
+
+<h2 id="method">Method</h2>
+<p>In a Bun <code>--compile</code> standalone, <b>the JS source ships as plain text</b> — template literals keep their backticks and <code>${}</code>; only module boundaries carry bytecode markers. No decompiler is needed to recover every prompt:</p>
+<pre><code># 1. carve: module boundaries are \x00 + "// @bun @bytecode"
+python3 tools/carve_modules.py        # → 2,174 modules + modules.json (real chunk names resolved)
+
+# 2. extract string literals with a state machine ('…' "…" `…`, ${} nesting included)
+python3 tools/extract_literals.py     # → 28,960 template literals
+
+# 3. locate and quote evidence
+python3 tools/ctx.py &lt;absolute offset&gt; 300 300   # print source around an offset
+python3 tools/census.py                          # corpus-wide phrasing statistics</code></pre>
+<p>Completeness: 2,176 boundary markers, 2,175 distinct referenced chunk names, 2,174 carved modules — the three agree, so nothing is missing. 1,266 module names were recovered by matching "export set ⊇ imported names".</p>
+
+<h2 id="prompt">How the system prompt is assembled</h2>
+<figure>
+  <img src="assets/01-prompt-assembly.svg" alt="Block assembly and cache scopes of the system prompt">
+  <figcaption>Figure 1 · Blocks grouped by cache scope: uncached billing header, identity, then the body</figcaption>
+</figure>
+<p>The assembler returns two groups: <code>shared</code> (stable across sessions) and <code>session</code> (re-evaluated per turn). Six static blocks, roughly 27 dynamic ones — and a dynamic block may return <code>null</code>, meaning "not injected this time".</p>
+<div class="card accent">
+  <h3>Three things worth stealing</h3>
+  <ul>
+    <li><b>Block names feed the cache key and telemetry</b>: editing one block does not invalidate the others.</li>
+    <li><b>Static blocks state principles, dynamic blocks state the situation</b>: "NEVER/always" versus "this session / right now".</li>
+    <li><b>One mechanism, several registers</b>: 2–3 wordings each for the system-reminder note and the communication rules, selected by runtime shape.</li>
+  </ul>
+</div>
+
+<h3>The expression layer is pluggable</h3>
+<p>An Output Style is <code>{name, description, prompt, turnReminder, waitingTurnReminder, keepCodingInstructions}</code>, with <code>default / Proactive / Concise / Explanatory / Learning</code> built in. <b>Coding discipline survives by default</b> — a style must opt out explicitly.</p>
+<blockquote>The Concise style carries an adjudication clause: <code>Where these rules conflict with more general communication or formatting guidance elsewhere in your instructions, these rules win.</code> Without it, a style prompt just ties with the system prompt.</blockquote>
+
+<h2 id="patterns">How rules are written</h2>
+<figure>
+  <img src="assets/06-prompt-patterns.svg" alt="Frequency of instruction markers across the prompt corpus">
+  <figcaption>Figure 2 · Marker frequencies over 772 de-duplicated prompt literals (green = conditions/alternatives, red = uppercase hard rules)</figcaption>
+</figure>
+<table>
+  <thead><tr><th>Shape</th><th>Example</th></tr></thead>
+  <tbody>
+    <tr><td>Prohibition + exception</td><td><code>No model turn unless the plugin asks for one.</code></td></tr>
+    <tr><td>Prohibition + substitute</td><td><code>Prefer the Edit tool for modifying existing files — it only sends the diff.</code></td></tr>
+    <tr><td>Condition → action</td><td><code>If you did not check, say you did not check.</code></td></tr>
+    <tr><td>Uppercase red line</td><td><code>NEVER create documentation files (*.md) …</code></td></tr>
+    <tr><td>Preference order</td><td><code>Prefer denying the enclosing directories.</code></td></tr>
+    <tr><td>Conflict adjudication</td><td><code>An explicit value always wins.</code></td></tr>
+    <tr><td>Lead with the outcome</td><td><code>Report what actually happened, not what you intended.</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="agents">Multi-agent orchestration</h2>
+<figure>
+  <img src="assets/02-multi-agent.svg" alt="Coordinator and worker orchestration">
+  <figcaption>Figure 3 · The coordinator's four phases plus structured result delivery</figcaption>
+</figure>
+<ul>
+  <li><b>Started ≠ finished</b>: a successful Agent call returns only <code>status / agentId / outputFile</code>, plus <code>You know nothing about its results until that notification arrives</code>. Results arrive as <code>&lt;task-notification&gt;</code> XML, headed <code>[SYSTEM NOTIFICATION - NOT USER INPUT]</code> so it cannot be mistaken for approval.</li>
+  <li><b>Subagent types carry output contracts</b>: <code>Plan</code> must end with <code>### Critical Files for Implementation</code>; <code>worker</code> must reply in two fixed sections with good/bad examples.</li>
+  <li><b>Read-only roles are locked down three times</b>: tool denylist + <code>=== CRITICAL: READ-ONLY MODE ===</code> in the body + seven concrete prohibitions (even <code>/tmp</code> and shell redirection) + <code>omitClaudeMd</code> at assembly time.</li>
+  <li><b>"Always synthesize — your most important job"</b>: writing "based on your findings" is banned; it outsources understanding to the worker.</li>
+  <li><b>Approval cannot be relayed</b>: after a user approves a gated action, spawn a fresh agent carrying the approval verbatim; this also separates the worker that read untrusted input from the worker performing a privileged action.</li>
+  <li><b>Hard numbers</b>: concurrency 20, nesting depth 3, forks inherit the full conversation without polluting the parent's context.</li>
+</ul>
+
+<h2 id="context">Context engineering</h2>
+<div class="grid2">
+  <div class="card">
+    <h3>Four reduction paths</h3>
+    <ul>
+      <li>auto-compact: threshold = effective window − 13,000</li>
+      <li><code>/compact</code>: accepts custom instructions</li>
+      <li>microcompact: clears old tool results on idle</li>
+      <li>reactive compact: retries after prompt-too-long</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Caching is tied to structure</h3>
+    <p>A sentinel <code>__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__</code> splits static from dynamic content, and blocks get a <code>cacheScope</code>. The breakpoint moves at runtime when MCP tools are unstable.</p>
+  </div>
+  <div class="card">
+    <h3>File freshness</h3>
+    <p>mtime + content hash + "was it a full view". A partial read does not count as a read; after compaction the file state is invalidated rather than pretended.</p>
+  </div>
+  <div class="card">
+    <h3>Truncation carries a signal</h3>
+    <p>Read defaults to 2,000 lines, Bash to 20,000 chars; Read paginates and sets a <code>truncatedByTokenCap</code> boolean — structured flags survive message rebuilding better than banners.</p>
+  </div>
+</div>
+
+<h2 id="binary">Inside the binary</h2>
+<figure>
+  <img src="assets/03-binary-layout.svg" alt="Mach-O segments and the three parts of __BUN">
+  <figcaption>Figure 4 · Everything embedded lives in a single <code>__BUN</code> section (159 MB)</figcaption>
+</figure>
+<figure>
+  <img src="assets/04-three-layers.svg" alt="Three layers and the tools each one needs">
+  <figcaption>Figure 5 · Three layers, three tools: source is extracted, bytecode is closed, native libraries go to Ghidra</figcaption>
+</figure>
+<p>The last 8.4 MB are <b>not JS bytecode but embedded native libraries</b>: <code>libComputerUseSwift.dylib</code> (Swift, x86_64 + ARM64), <code>libcomputer_use_input.dylib</code> (Rust — its build path leaks the monorepo layout) and <code>audio-capture.node</code>. In other words, <b>computer use is not implemented in JS</b>.</p>
+<div class="card good">
+  <b>Completeness result</b>: no prompt text exists only in the bytecode region. A first pass flagged 43,607 strings missing from the source; after manual review, <b>zero</b> of them were Claude Code prompts — the rest were Bun/Rust/JSC runtime strings and escaping artefacts.
+</div>
+
+<h2 id="dynamic">Dynamic verification: intercepting a real request</h2>
+<figure>
+  <img src="assets/07-dynamic-verification.svg" alt="Intercepting a real request locally and comparing with the static reconstruction">
+  <figcaption>Figure 6 · Dummy credentials plus a local base URL; the server logs the body and never forwards it</figcaption>
+</figure>
+<p>Point <code>ANTHROPIC_BASE_URL</code> at a tiny local server, run <code>claude -p</code> with an empty config directory and a dummy key. No traffic leaves the machine, yet we get the real request body.</p>
+<ul>
+  <li><b>Confirmed</b>: three system blocks (uncached billing header / identity / body), tool descriptions genuinely come in two sizes (Bash 1,097 → 9,438 chars), <code># Harness</code> belongs to the lean body, only 20 tools ship.</li>
+  <li><b>Corrected</b>: the third system-reminder wording was attributed to "coordinator mode" — the real trigger is the model's <code>midConversationSystem</code> capability bit.</li>
+  <li><b>Bonus</b>: <code>-p</code> sends the lean body by default; <code>CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=0</code> yields the 27 KB full body.</li>
+</ul>
+
+<h2 id="evolution">Six releases: code grows, wording does not</h2>
+<figure>
+  <img src="assets/05-evolution.svg" alt="Growth across six releases versus prompt stability">
+  <figcaption>Figure 7 · 2.1.272 → 2.1.287: +25% modules, prompt prose essentially frozen</figcaption>
+</figure>
+<p>Running the same pipeline over 2.1.272 / 282 / 283 / 284 / 286 / 287: seven sections are byte-identical, a few differ only by an added conditional fragment. The one clearly new subsystem is <b>memory</b> — the <code>MEMORY.md</code> index constants appear for the first time in 2.1.287, and the captured request does carry <code># auto memory</code>.</p>
+
+<h2 id="native">Native layer: what Ghidra can decompile</h2>
+<p>Three embedded libraries yield <b>5,217 functions</b> (Ghidra 12 recovers Swift symbol names):</p>
+<table>
+  <thead><tr><th>Library</th><th>Role</th><th>Evidence</th></tr></thead>
+  <tbody>
+    <tr><td><code>libComputerUseSwift</code></td><td>Accessibility (AX) layer</td><td><code>AXDispatch.keyCombo/typeText/deleteAtCaret</code>, <code>AXElementAtPoint</code> (ascends to a pressable ancestor), <code>PhantomCursor</code>, <code>CollisionWatch</code>, <code>WindowCover</code>, screenshots with an exclusion list</td></tr>
+    <tr><td><code>libcomputer_use_input</code></td><td>Input injection (Rust)</td><td><code>CGEventCreate/Post/SetFlags</code>, <code>CGEventKeyboardSetUnicodeString</code>, mouse/keyboard/scroll events</td></tr>
+    <tr><td><code>audio-capture.node</code></td><td>CoreAudio capture</td><td><code>AudioUnit</code> / <code>AudioObject</code> — not ScreenCaptureKit</td></tr>
+  </tbody>
+</table>
+<div class="card warn">
+  <b>Permission gates live in two places:</b> the CLI itself has <b>no</b> macOS App Sandbox entitlement (only JIT, Apple Events, audio input, …); OS-level isolation is something it starts on purpose via <code>sandbox-exec</code>, and the seatbelt profile is assembled on the <b>JS side</b>.
+</div>
+
+<h2 id="lessons">What to steal</h2>
+<div class="grid2">
+  <div class="card">
+    <h3>Cheap and immediate</h3>
+    <ol>
+      <li>Block-name your system prompt; group "stable" vs "per-turn"; allow <code>null</code></li>
+      <li>Give every hard rule a trigger, a counter-example and a substitute action</li>
+      <li>Reserve uppercase NEVER for real incidents</li>
+      <li>Write the conflict-adjudication sentence</li>
+      <li>Document harness mechanics (who injected which tag, where results come from)</li>
+      <li>Route injections through a choke point: allowlist, size caps, observable <code>truncated/dropped</code></li>
+      <li>Make reminders self-limiting: two thresholds, an "ignore if not applicable" exit, a repeat cap</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>Needs architecture work</h3>
+    <ol start="8">
+      <li>Pluggable expression layer (output-style style), three granularities per intent</li>
+      <li>Contract the async subagent: structured notifications, prediction banned</li>
+      <li>Split concurrency by read/write; serialize writers, isolate with worktrees</li>
+      <li>Approval cannot be relayed; separate reading untrusted input from privileged action</li>
+      <li>One task system, not two; make "done" executable</li>
+      <li>Mark prompt boundaries explicitly so cache breakpoints are computable</li>
+      <li>Define verification: proving ≠ confirming</li>
+      <li>Turn meta-work into agent workflows (memory consolidation, skill capture, evals, diagnostics)</li>
+    </ol>
+  </div>
+</div>
+
+<h2 id="limits">Limits</h2>
+<ul>
+  <li>The target is <b>this one local build</b>; prompts may differ by account, region or rollout.</li>
+  <li>Final block assembly is only knowable at runtime; this work presents assembly code and block texts, not one specific request body.</li>
+  <li>The interactive TUI could not be exercised (the sandbox denies <code>openpty</code>), so the CLI identity variant is unverified.</li>
+  <li>JSC bytecode was <b>not decompiled</b> (no public decompiler); only a completeness check was done.</li>
+  <li>231 non-chunk assets (<code>SKILL-*.md</code> etc.) were not extracted individually; the sandbox profile's default allow-set is not fully reconstructed.</li>
+  <li>Decompiled output was surveyed at symbol/API level, not read function by function.</li>
+</ul>
+
+<h2>All documents</h2>
+<table>
+  <thead><tr><th>Topic</th><th>English</th><th>中文</th></tr></thead>
+  <tbody>
+    <tr><td>Main report</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/README.en.md">README.en.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/README.md">README.md</a></td></tr>
+    <tr><td>System prompt</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/01-system-prompt.en.md">01 (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/01-system-prompt.md">01</a></td></tr>
+    <tr><td>Output styles</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/02-output-styles.en.md">02 (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/02-output-styles.md">02</a></td></tr>
+    <tr><td>Built-in tools</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/03-tools.en.md">03 (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/03-tools.md">03</a></td></tr>
+    <tr><td>Multi-agent</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/04-multi-agent.en.md">04 (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/04-multi-agent.md">04</a></td></tr>
+    <tr><td>Context engineering</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/05-context.en.md">05 (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/05-context.md">05</a></td></tr>
+    <tr><td>Design quirks</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/06-quirks.en.md">06 (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/06-quirks.md">06</a></td></tr>
+    <tr><td>Prompt-writing stats</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/07-prompt-writing-patterns.en.md">07 (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/07-prompt-writing-patterns.md">07</a></td></tr>
+    <tr><td>Meta features</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/08-meta-features.en.md">08 (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/08-meta-features.md">08</a></td></tr>
+    <tr><td>Dynamic verification</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-dynamic.en.md">report (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-dynamic.md">report</a></td></tr>
+    <tr><td>Version evolution</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/evolution/REPORT-evolution.en.md">report (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/evolution/REPORT-evolution.md">report</a></td></tr>
+    <tr><td>Native layer</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-native.en.md">report (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-native.md">report</a></td></tr>
+    <tr><td>Ghidra decompilation</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-ghidra.en.md">report (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-ghidra.md">report</a></td></tr>
+  </tbody>
+</table>
+
+</main>
+</div>
+
+<footer>
+  <p>This repository publishes analysis and conclusions only. It does <b>not</b> include Claude Code's source corpus, decompiled output or binaries; quotes are the minimum needed as evidence.</p>
+  <p>Tooling lives in <code>tools/</code>; the diagrams are generated by <code>tools/make_diagrams.py</code>.</p>
+</footer>
+</body>
+</html>

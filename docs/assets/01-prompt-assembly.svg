@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" width="100%" role="img" aria-label="prompt assembly and caching">
+<rect width="960" height="620" fill="#f8fafc"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/></marker><marker id="ahg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/></marker></defs>
+<text x="28" y="40" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#111827">System prompt: assembled from named blocks, grouped by cache scope</text>
+<text x="28" y="62" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280" font-weight="400" text-anchor="start">Claude Code 2.1.287 — every block has a name, can be null (not injected), and its own cache scope</text>
+<rect x="28" y="84" width="904" height="74" rx="10" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5"/>
+<text x="42" y="108" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">block 0 · x-anthropic-billing-header</text>
+<text x="42" y="128" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">74 bytes · cache_control = none            ← most volatile field, isolated, never cached</text>
+<rect x="28" y="168" width="904" height="62" rx="10" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="42" y="192" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">block 1 · identity</text>
+<text x="42" y="212" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">62 bytes · cache_control = ephemeral       &quot;You are Claude Code, Anthropic&#x27;s official CLI for Claude.&quot;  (3 variants)</text>
+<text x="28" y="252" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" fill="#111827" font-weight="600" text-anchor="start">block 2 · body</text>
+<text x="28" y="270" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280" font-weight="400" text-anchor="start">everything else, 5.7 KB (lean) / 27 KB (full) · cache_control = ephemeral</text>
+<rect x="28" y="284" width="440" height="210" rx="10" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="42" y="308" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">STATIC — shared</text>
+<text x="42" y="328" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">same across sessions; safe to cache long-term</text>
+<text x="44" y="356" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">intro — identity, security baseline, URL rule</text>
+<text x="44" y="378" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">system — # System (5 mechanics explained)</text>
+<text x="44" y="400" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">doing_tasks — # Doing tasks (defaults + exceptions)</text>
+<text x="44" y="422" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">actions — # Executing actions with care</text>
+<text x="44" y="444" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">tools — # Using your tools</text>
+<text x="44" y="466" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">tone — # Tone and style (4 rules)</text>
+<text x="44" y="494" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">→ --bare replaces all 6 with one lean_body</text>
+<rect x="492" y="284" width="440" height="210" rx="10" fill="#ffffff" stroke="#fcd34d" stroke-width="1.5"/>
+<text x="506" y="308" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">DYNAMIC — session</text>
+<text x="506" y="328" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">re-evaluated every turn; may be null</text>
+<text x="508" y="356" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">communication · action_caution · pronouns</text>
+<text x="508" y="376" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">task_continuity · tool_param_json · memory</text>
+<text x="508" y="396" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">env_info · bg-session · context_management</text>
+<text x="508" y="416" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">brief · focus_mode · act_dont_rederive</text>
+<text x="508" y="436" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">delivering_work_max · overcorrection</text>
+<text x="508" y="456" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">autonomy_append · endconv_deferred_hint</text>
+<text x="508" y="476" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="400" text-anchor="start">total_tokens · repl_model_calls</text>
+<text x="508" y="500" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">…~27 blocks total, each behind tengu_* flags</text>
+<rect x="28" y="512" width="904" height="88" rx="10" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="1.5"/>
+<text x="42" y="536" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#111827">why this shape</text>
+<text x="42" y="556" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">• a block can be null → absent, not empty (no token cost, no cache churn)</text>
+<text x="42" y="572" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">• block names feed the cache key and telemetry → changing one block doesn&#x27;t invalidate the others</text>
+<text x="42" y="588" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280">• ${placeholders} let one wording serve many tools/forms (TodoWrite vs TaskCreate share a sentence)</text>
+</svg>

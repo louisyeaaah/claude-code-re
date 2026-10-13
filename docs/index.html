@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claude Code 逆向分析：提示词、多 agent、设计小巧思</title>
+<meta name="description" content="对 Claude Code v2.1.287 单文件产物的完整离线逆向：系统提示词如何装配、多 agent 如何编排、上下文工程与原生层。含图表、跨版本对比与可复现方法。">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top"><div class="inner">
+  <span class="brand">Claude Code 逆向分析</span>
+  <span class="spacer"></span>
+  <nav>
+    <a href="#prompt">提示词</a>
+    <a href="#agents">多 agent</a>
+    <a href="#binary">二进制</a>
+    <a href="#evolution">演化</a>
+    <a href="#native">原生层</a>
+    <a href="en.html">English</a>
+    <a href="https://github.com/louisyeaaah/claude-code-re">GitHub ↗</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+<aside>
+  <ol>
+    <li><a href="#overview">一页速览</a></li>
+    <li><a href="#method">方法与可复现</a></li>
+    <li><a href="#prompt">提示词是怎么装出来的</a></li>
+    <li><a href="#patterns">规则怎么写</a></li>
+    <li><a href="#agents">多 agent 编排</a></li>
+    <li><a href="#context">上下文工程</a></li>
+    <li><a href="#binary">二进制里有什么</a></li>
+    <li><a href="#dynamic">动态验证与纠错</a></li>
+    <li><a href="#evolution">跨六版演化</a></li>
+    <li><a href="#native">原生层与 Ghidra</a></li>
+    <li><a href="#lessons">可迁移清单</a></li>
+    <li><a href="#limits">局限与未完成</a></li>
+  </ol>
+</aside>
+
+<main>
+<h1>Claude Code 逆向分析</h1>
+<p class="lede">把本机安装的 Claude Code v2.1.287 完整拆开：提示词怎么装配、多 agent 怎么编排、上下文怎么管理、二进制里到底有什么。全程离线静态分析，未运行、未改动它。</p>
+
+<div class="meta">
+  <b>对象</b>：<code>~/.local/share/claude/versions/2.1.287</code>（Mach-O arm64，226 MB 单文件，Bun 编译）<br>
+  <b>SHA-256</b>：<code>6eab8333…fcb41ea</code> ｜ BUILD_TIME <code>2026-10-01T16:02:06Z</code> ｜ GIT_SHA <code>3c446a1b…</code><br>
+  <b>方法</b>：切块 → 抽字符串 → 本地拦截真实请求验证 → 跨六版对比 → Ghidra 反编译原生库
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="n">2174</div><div class="k">内嵌 JS 模块</div></div>
+  <div class="stat"><div class="n">41.6 MB</div><div class="k">明文源码（提示词都在这里）</div></div>
+  <div class="stat"><div class="n">772</div><div class="k">提示词型字面量</div></div>
+  <div class="stat"><div class="n">5,217</div><div class="k">原生库反编译函数</div></div>
+</div>
+
+<h2 id="overview">一页速览</h2>
+<ol>
+  <li><b>系统提示词是装配出来的，不是写出来的</b>：6 个静态块 + 约 27 个动态块，每块有名、可空（<code>null</code> = 不注入，不是空串）、可单独开关。</li>
+  <li><b>块化直接服务缓存</b>：最易变的计费头单独成第一块且不缓存，身份单独一块，其余合一块——提示词结构就是缓存结构。</li>
+  <li><b>表达层可插拔</b>：Output Style 把"我是谁、我怎么说话"抽成对象（prompt + 每轮提醒 + 等待态提醒 + 是否保留编码纪律），与行为准则解耦。</li>
+  <li><b>同一意图给三级粒度</b>：身份长文塑造、每轮一句话维持、状态特例纠偏。</li>
+  <li><b>规则偏"条件 + 替代 + 例子"，不靠大写禁令</b>：<code>e.g.</code>(164) ＞ <code>instead of</code>(111) ＞ <code>unless</code>(92) ＞ <code>NEVER</code>(35)。</li>
+  <li><b>红线才上大写 NEVER</b>：约 18 条，每条对应一个真实高频事故。</li>
+  <li><b>冲突显式裁决</b>：<code>Where these rules conflict with … these rules win.</code></li>
+  <li><b>把 harness 机制写进提示词</b>：谁注入了 <code>&lt;system-reminder&gt;</code>、工具结果可能来自外部、hook 输出视同用户反馈。</li>
+  <li><b>异步子代理的返回体结构上没有"结果"字段</b>——编造没有语法出口。</li>
+  <li><b>授权不可转发</b>：批准后的动作要新开 agent 携带原文执行，顺带隔离"读不可信输入"与"执行特权动作"。</li>
+  <li><b>提示词即产品面</b>：大段内容挂 <code>tengu_*</code> 开关，可灰度、可回滚、可 A/B。</li>
+  <li><b>三周内提示词正文几乎冻结</b>：代码 +25%、开关 +13%，但 7 个小节逐字未变。</li>
+</ol>
+
+<h2 id="method">方法与可复现</h2>
+<p>Bun 的 <code>--compile</code> 单文件产物里，<b>JS 源码是明文</b>——模板字面量连反引号和 <code>${}</code> 都保留，只有模块边界带字节码标记。所以不需要反编译器就能拿到全部提示词：</p>
+<pre><code># 1. 切块：模块边界是 \x00 + "// @bun @bytecode"
+python3 tools/carve_modules.py        # → 2174 个模块 + modules.json（含真实 chunk 名反查）
+
+# 2. 抽字符串：状态机解析 '…' "…" `…`（含 ${} 嵌套）
+python3 tools/extract_literals.py     # → 28,960 条模板字面量
+
+# 3. 定位与取证
+python3 tools/ctx.py &lt;绝对偏移&gt; 300 300   # 打印该偏移附近的源码原文
+python3 tools/census.py               # 全库提示词句式统计</code></pre>
+<p>完整性核对：模块边界标记 2176 处、被引用的唯一 chunk 名 2175 个、我们切出 2174 个模块——三者一致，没有遗漏。模块名用「导出集合 ⊇ 导入名集合」反查，1266 个模块恢复出真实 <code>chunk-*.js</code> 名。</p>
+
+<h2 id="prompt">提示词是怎么装出来的</h2>
+<figure>
+  <img src="assets/01-prompt-assembly.svg" alt="系统提示词的分块装配与缓存分层">
+  <figcaption>图 1 · 系统提示词按缓存域分块：计费头不缓存，身份单独一块，其余为 body</figcaption>
+</figure>
+<p>主装配函数返回两组块：<code>shared</code>（跨会话稳定）与 <code>session</code>（每轮可变）。静态块只有 6 个，动态块约 27 个——动态块可以返回 <code>null</code>，表示"这次不注入"。</p>
+<div class="card accent">
+  <h3>最值得学的三点</h3>
+  <ul>
+    <li><b>块名进缓存 key 与遥测</b>：改一个块不会污染其它块的缓存。</li>
+    <li><b>静态讲准则、动态讲处境</b>：静态写 "NEVER/always"，动态写 "this session / right now"，用措辞把规则的有效期说清楚。</li>
+    <li><b>同一个机制准备多档文案</b>：system-reminder 说明、沟通规则各有 2~3 档，按运行形态切换，而不是写一篇覆盖所有情况的模糊长文。</li>
+  </ul>
+</div>
+
+<h3>表达层是可插拔的</h3>
+<p>一个 Output Style = <code>{name, description, prompt, turnReminder, waitingTurnReminder, keepCodingInstructions}</code>，内置 <code>default / Proactive / Concise / Explanatory / Learning</code>。<b>工程纪律默认保留</b>，只有显式声明才覆盖——默认安全。</p>
+<blockquote>Concise 风格里有一条裁决条款：<code>Where these rules conflict with more general communication or formatting guidance elsewhere in your instructions, these rules win.</code> 没有这句，风格提示词会在模型内部与系统提示词打平手。</blockquote>
+
+<h2 id="patterns">规则怎么写：给条件、给替代、给例子</h2>
+<figure>
+  <img src="assets/06-prompt-patterns.svg" alt="提示词里的指令标记频次统计">
+  <figcaption>图 2 · 772 条提示词型字面量里的标记频次（绿色 = 给条件/替代，红色 = 大写硬规则）</figcaption>
+</figure>
+<table>
+  <thead><tr><th>句式</th><th>例子</th></tr></thead>
+  <tbody>
+    <tr><td>禁令 + 例外</td><td><code>No model turn unless the plugin asks for one.</code></td></tr>
+    <tr><td>禁止 + 替代</td><td><code>Prefer the Edit tool for modifying existing files — it only sends the diff.</code></td></tr>
+    <tr><td>条件—动作</td><td><code>If you did not check, say you did not check.</code></td></tr>
+    <tr><td>大写红线</td><td><code>NEVER create documentation files (*.md) …</code></td></tr>
+    <tr><td>偏好排序</td><td><code>Prefer denying the enclosing directories.</code></td></tr>
+    <tr><td>冲突裁决</td><td><code>An explicit value always wins.</code></td></tr>
+    <tr><td>结论先行</td><td><code>Report what actually happened, not what you intended.</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="agents">多 agent 编排</h2>
+<figure>
+  <img src="assets/02-multi-agent.svg" alt="coordinator 与 worker 的编排结构">
+  <figcaption>图 3 · coordinator 四阶段流水线 + 结构化结果回传</figcaption>
+</figure>
+<ul>
+  <li><b>启动 ≠ 完成</b>：Agent 工具的成功返回体里只有 <code>status / agentId / outputFile</code>，并明写 <code>You know nothing about its results until that notification arrives</code>。结果只能等 <code>&lt;task-notification&gt;</code> XML，且带 <code>[SYSTEM NOTIFICATION - NOT USER INPUT]</code> 抬头防止被当成用户授权。</li>
+  <li><b>每个子代理类型带输出契约</b>：<code>Plan</code> 必须以 <code>### Critical Files for Implementation</code> 收尾；<code>worker</code> 必须两段式回话并附好坏例子。</li>
+  <li><b>只读角色三层钉死</b>：工具黑名单 + 正文 <code>=== CRITICAL: READ-ONLY MODE ===</code> + 7 条具体禁令（连 <code>/tmp</code>、重定向符都点名）+ 装配层 <code>omitClaudeMd</code>。</li>
+  <li><b>"Always synthesize — your most important job"</b>：禁止写 "based on your findings"——那等于把理解外包给 worker。</li>
+  <li><b>授权不可转发</b>：worker 停在权限门前、用户批准后，必须新开 agent 并把批准原文放进初始 prompt；这样也把"读过不可信输入的 worker"与"执行特权动作的 worker"分开。</li>
+  <li><b>硬数字</b>：并发默认 20、嵌套深度 3、fork 继承完整上下文且不占父上下文。</li>
+</ul>
+
+<h2 id="context">上下文工程</h2>
+<div class="grid2">
+  <div class="card">
+    <h3>四条削减路径</h3>
+    <ul>
+      <li>auto-compact：阈值 = 有效窗口 − 13000</li>
+      <li><code>/compact</code>：可带自定义指令</li>
+      <li>microcompact：按空闲时间清旧 tool_result</li>
+      <li>reactive compact：prompt-too-long 后重试</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>缓存与结构耦合</h3>
+    <p>系统提示词里有一个哨兵 <code>__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__</code>，把内容切成静态段与动态段，再按块标 <code>cacheScope</code>。断点是<b>运行时决策</b>：MCP 工具不稳定时就挪到系统提示词。</p>
+  </div>
+  <div class="card">
+    <h3>文件新鲜度</h3>
+    <p>mtime + 内容 hash + "是否完整视图"三件套；<b>部分读不算读过</b>；压缩后作废文件状态，而不是假装还记得。</p>
+  </div>
+  <div class="card">
+    <h3>截断要结构化</h3>
+    <p>Read 默认 2000 行、Bash 20000 字符；Read 走 token-cap 分页并置 <code>truncatedByTokenCap</code> 布尔位——比横幅文案更抗消息重建。</p>
+  </div>
+</div>
+
+<h2 id="binary">二进制里有什么</h2>
+<figure>
+  <img src="assets/03-binary-layout.svg" alt="Mach-O 段结构与 __BUN 内部的三大块">
+  <figcaption>图 4 · 全部嵌入内容装在 <code>__BUN</code> 一个节里（159 MB）</figcaption>
+</figure>
+<figure>
+  <img src="assets/04-three-layers.svg" alt="三层内容与各自需要的工具">
+  <figcaption>图 5 · 三层内容，三种工具：源码靠提取、字节码没辙、原生库交给 Ghidra</figcaption>
+</figure>
+<p>尾部 8.4 MB <b>不是 JS 字节码，而是嵌进去的原生库</b>：<code>libComputerUseSwift.dylib</code>（Swift，x86_64 + ARM64）、<code>libcomputer_use_input.dylib</code>（Rust，构建路径还泄漏了 monorepo 位置）、<code>audio-capture.node</code>。也就是说 <b>computer-use 的实现不在 JS 里</b>。</p>
+<div class="card good">
+  <b>完整性核对结论</b>：字节码区没有"只存在于那里"的提示词。第一轮算出 43,607 条源码里找不到的串，人工复核后确认属于 Claude Code 提示词的 <b>0 条</b>——其余是 Bun/Rust/JSC 运行时字符串与转义差异造成的假缺口。
+</div>
+
+<h2 id="dynamic">动态验证：本地拦截一次真实请求</h2>
+<figure>
+  <img src="assets/07-dynamic-verification.svg" alt="本地拦截真实请求并与静态还原对照">
+  <figcaption>图 6 · 假密钥 + 本地 base URL，服务器只落盘不转发</figcaption>
+</figure>
+<p>做法：把 <code>ANTHROPIC_BASE_URL</code> 指向本机的一个小服务器，用空配置目录与假密钥跑一次 <code>claude -p</code>。请求从未离开机器，却拿到了真实请求体。</p>
+<ul>
+  <li><b>确认</b>：三个 system 块（计费头不缓存 / 身份 / body）、工具描述确实是两档（Bash 1,097 → 9,438 字符）、<code># Harness</code> 属于 lean 体、只下发 20 个工具。</li>
+  <li><b>纠正</b>：静态分析原以为第三档 system-reminder 说明属于"协调器模式"——真实触发条件是模型的 <code>midConversationSystem</code> 能力位，本机实测走的就是这一档。</li>
+  <li><b>顺带发现</b>：<code>-p</code> 默认发 lean 体；加 <code>CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=0</code> 才得到 27 KB 完整体。</li>
+</ul>
+
+<h2 id="evolution">跨六版演化：代码在长，措辞不动</h2>
+<figure>
+  <img src="assets/05-evolution.svg" alt="六个版本的规模增长与提示词稳定性">
+  <figcaption>图 7 · 2.1.272 → 2.1.287：模块 +25%，提示词正文基本冻结</figcaption>
+</figure>
+<p>把同一套管线跑在 2.1.272 / 282 / 283 / 284 / 286 / 287 上后对比：7 个小节逐字相同，另外几个只有 1 处条件注入差异；唯一明显新增的子系统是<b>记忆</b>（<code>MEMORY.md</code> 索引常量只在 2.1.287 出现，且真实请求里确实带上了 <code># auto memory</code>）。</p>
+
+<h2 id="native">原生层：Ghidra 能反编译什么</h2>
+<p>三个嵌入库反编译出 <b>5,217 个函数</b>（Ghidra 12 能还原 Swift 符号名）：</p>
+<table>
+  <thead><tr><th>库</th><th>角色</th><th>证据</th></tr></thead>
+  <tbody>
+    <tr><td><code>libComputerUseSwift</code></td><td>无障碍（AX）层</td><td><code>AXDispatch.keyCombo/typeText/deleteAtCaret</code>、<code>AXElementAtPoint</code>（向上找可点击祖先）、<code>PhantomCursor</code>、<code>CollisionWatch</code>、<code>WindowCover</code>、截图带排除名单</td></tr>
+    <tr><td><code>libcomputer_use_input</code></td><td>输入注入层（Rust）</td><td><code>CGEventCreate/Post/SetFlags</code>、<code>CGEventKeyboardSetUnicodeString</code>、鼠标/键盘/滚轮事件</td></tr>
+    <tr><td><code>audio-capture.node</code></td><td>CoreAudio 录音</td><td><code>AudioUnit</code> / <code>AudioObject</code>，不是 ScreenCaptureKit</td></tr>
+  </tbody>
+</table>
+<div class="card warn">
+  <b>权限门在两层：</b>CLI 自身<b>没有</b> macOS App Sandbox 权限（entitlements 只有 JIT / Apple Events / 麦克风等），OS 级隔离是它主动调 <code>sandbox-exec</code> 起的；seatbelt profile 由 <b>JS 侧</b>拼出来后交给系统执行。
+</div>
+
+<h2 id="lessons">可迁移清单</h2>
+<div class="grid2">
+  <div class="card">
+    <h3>立刻可做</h3>
+    <ol>
+      <li>提示词块化 + 命名，按"稳定 / 每轮变"分组，块可 <code>null</code></li>
+      <li>每条硬规则补三样：触发条件、反例、替代动作</li>
+      <li>红线才用大写 NEVER，且对应真实事故</li>
+      <li>写死冲突裁决句</li>
+      <li>把 harness 机制写进提示词（谁注入的标签、结果从哪来）</li>
+      <li>注入过收口层：白名单 + 长度上限 + <code>truncated/dropped</code> 可观测</li>
+      <li>提醒要能自我停止：双阈值 + 可忽略出口 + 连发上限</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>要改架构才能享受</h3>
+    <ol start="8">
+      <li>表达层可插拔（output style 式），同一意图给三级粒度</li>
+      <li>异步子代理契约化：结构化通知 + 禁止预测结果</li>
+      <li>并发按读写分型；写同一批文件串行 + worktree 隔离</li>
+      <li>授权不可转发；读不可信输入与执行特权动作分角色</li>
+      <li>任务板与待办二选一，完成定义可执行</li>
+      <li>提示词边界显式标记，让缓存断点可计算</li>
+      <li>验证的定义写清楚：proving ≠ confirming</li>
+      <li>元功能做成 agent 工作流（记忆整合 / 技能沉淀 / 评测 / 诊断）</li>
+    </ol>
+  </div>
+</div>
+
+<h2 id="limits">局限与未完成</h2>
+<ul>
+  <li>分析对象是<b>本机这一份构建</b>；不同账号/地区/灰度下的提示词可能不同。</li>
+  <li>动态块的最终拼接只能在运行时确定；本文给的是装配代码与各块原文，不是某一轮真实请求体。</li>
+  <li>交互式 TUI 未能实测（沙箱禁止 <code>openpty</code>），所以 CLI 变体身份句未验证。</li>
+  <li>JSC 字节码<b>没有反编译</b>（无公开反编译器），只做了完整性对照。</li>
+  <li>231 个非 chunk 资源（<code>SKILL-*.md</code> 等）未逐个提取；sandbox profile 的默认放行集合未完整还原。</li>
+  <li>反编译产物只做了符号面与系统 API 归纳，未逐函数审读。</li>
+</ul>
+
+<h2>全部文档</h2>
+<table>
+  <thead><tr><th>主题</th><th>中文</th><th>English</th></tr></thead>
+  <tbody>
+    <tr><td>主报告</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/README.md">README.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/README.en.md">README.en.md</a></td></tr>
+    <tr><td>系统提示词</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/01-system-prompt.md">01-system-prompt.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/01-system-prompt.en.md">01 (en)</a></td></tr>
+    <tr><td>输出风格</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/02-output-styles.md">02-output-styles.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/02-output-styles.en.md">02 (en)</a></td></tr>
+    <tr><td>内置工具</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/03-tools.md">03-tools.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/03-tools.en.md">03 (en)</a></td></tr>
+    <tr><td>多 agent</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/04-multi-agent.md">04-multi-agent.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/04-multi-agent.en.md">04 (en)</a></td></tr>
+    <tr><td>上下文工程</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/05-context.md">05-context.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/05-context.en.md">05 (en)</a></td></tr>
+    <tr><td>设计小巧思</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/06-quirks.md">06-quirks.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/06-quirks.en.md">06 (en)</a></td></tr>
+    <tr><td>提示词写法统计</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/07-prompt-writing-patterns.md">07-prompt-writing-patterns.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/07-prompt-writing-patterns.en.md">07 (en)</a></td></tr>
+    <tr><td>元功能（记忆/Dream/技能/评测）</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/08-meta-features.md">08-meta-features.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/extracted/08-meta-features.en.md">08 (en)</a></td></tr>
+    <tr><td>动态验证</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-dynamic.md">REPORT-dynamic.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-dynamic.en.md">(en)</a></td></tr>
+    <tr><td>跨版本演化</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/evolution/REPORT-evolution.md">REPORT-evolution.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/evolution/REPORT-evolution.en.md">(en)</a></td></tr>
+    <tr><td>原生层与字节码</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-native.md">REPORT-native.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-native.en.md">(en)</a></td></tr>
+    <tr><td>Ghidra 反编译</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-ghidra.md">REPORT-ghidra.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-ghidra.en.md">(en)</a></td></tr>
+  </tbody>
+</table>
+
+</main>
+</div>
+
+<footer>
+  <p>本仓库只发布分析与结论；<b>不包含</b> Claude Code 的源码语料、反编译产物或二进制。所有引用均为分析取证所需的最小片段。</p>
+  <p>分析方法与工具在 <a href="https://github.com/louisyeaaah/claude-code-re">GitHub 仓库</a> 的 <code>tools/</code> 目录；图表由 <code>tools/make_diagrams.py</code> 生成。</p>
+</footer>
+</body>
+</html>

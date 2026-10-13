@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 460" width="100%" role="img" aria-label="prompt writing patterns">
+<rect width="960" height="460" fill="#f8fafc"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/></marker><marker id="ahg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/></marker></defs>
+<text x="28" y="40" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#111827">How the rules are written: conditions and alternatives, not shouting</text>
+<text x="28" y="62" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#6b7280" font-weight="400" text-anchor="start">counted over 772 de-duplicated prompt literals (2.67 MB) after stripping license headers</text>
+<rect x="230" y="82" width="578" height="13" rx="3" fill="#059669" opacity="0.85"/>
+<text x="218" y="92" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">e.g.</text>
+<text x="816" y="92" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">164</text>
+<rect x="230" y="102" width="391" height="13" rx="3" fill="#059669" opacity="0.85"/>
+<text x="218" y="112" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">instead of</text>
+<text x="629" y="112" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">111</text>
+<rect x="230" y="122" width="331" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="132" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">Do not</text>
+<text x="569" y="132" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">94</text>
+<rect x="230" y="142" width="324" height="13" rx="3" fill="#059669" opacity="0.85"/>
+<text x="218" y="152" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">unless</text>
+<text x="562" y="152" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">92</text>
+<rect x="230" y="162" width="300" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="172" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">If you</text>
+<text x="538" y="172" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">85</text>
+<rect x="230" y="182" width="222" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="192" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">Never</text>
+<text x="460" y="192" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">63</text>
+<rect x="230" y="202" width="197" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="212" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">only when</text>
+<text x="435" y="212" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">56</text>
+<rect x="230" y="222" width="172" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="232" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">Don&#x27;t</text>
+<text x="410" y="232" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">49</text>
+<rect x="230" y="242" width="123" height="13" rx="3" fill="#dc2626" opacity="0.85"/>
+<text x="218" y="252" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">do NOT</text>
+<text x="361" y="252" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">35</text>
+<rect x="230" y="262" width="123" height="13" rx="3" fill="#dc2626" opacity="0.85"/>
+<text x="218" y="272" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">NEVER</text>
+<text x="361" y="272" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">35</text>
+<rect x="230" y="282" width="120" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="292" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">MUST</text>
+<text x="358" y="292" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">34</text>
+<rect x="230" y="302" width="112" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="312" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">for example</text>
+<text x="350" y="312" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">32</text>
+<rect x="230" y="322" width="84" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="332" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">Always</text>
+<text x="322" y="332" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">24</text>
+<rect x="230" y="342" width="74" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="352" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">IMPORTANT:</text>
+<text x="312" y="352" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">21</text>
+<rect x="230" y="362" width="67" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="372" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">Prefer</text>
+<text x="305" y="372" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">19</text>
+<rect x="230" y="382" width="52" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="392" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">Avoid</text>
+<text x="290" y="392" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">15</text>
+<rect x="230" y="402" width="49" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+<text x="218" y="412" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" fill="#111827" font-weight="500" text-anchor="end">CRITICAL</text>
+<text x="287" y="412" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">14</text>
+<rect x="28" y="442" width="904" height="0" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+<text x="28" y="452" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" fill="#6b7280" font-weight="400" text-anchor="start">green = give a condition / alternative · blue = neutral · red = uppercase hard rules (reserved for real incidents)</text>
+</svg>
