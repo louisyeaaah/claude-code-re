@@ -17,7 +17,7 @@ public class DumpDecomp extends GhidraScript {
         String filter = args.length > 0 ? args[0] : "";
         if (filter.equals("-")) filter = "";   // "-" = 全部函数
         String outPath = args.length > 1 ? args[1] : "decomp.txt";
-        int timeout = args.length > 2 ? Integer.parseInt(args[2]) : 90;
+        int timeout = args.length > 2 ? Integer.parseInt(args[2]) : 400;   // 默认放宽到 400s（少数大函数 90s 会超时）
 
         DecompInterface di = new DecompInterface();
         di.toggleCCode(true);

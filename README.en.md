@@ -324,3 +324,20 @@ In one sentence: **Ghidra is useless for the JS and the JSC bytecode, and very u
 - `audio-capture.node`: **CoreAudio** (`AudioUnit`/`AudioObject`), not ScreenCaptureKit; the JS side loads it from `vendor/audio-capture/<arch>-<platform>/`.
 
 The division of labor between the two layers: the Swift layer decides "which element to act on, whether it can be acted on, and how to explain the result clearly", while the Rust layer handles "actually emitting the events". After reading the result, the JS side (`chunks2/0788__chunk-c8t4wb5r.js`) calls `setPhantomCursor(...)` and writes the element's ancestor chain into the observation text handed to the model — **computer-use really is not implemented in JS**.
+
+---
+
+## 13. Second pass: closing the "not yet done" list (2026-10-14, later)
+
+Six gaps were left open in the first round; this pass works through them:
+
+| Previous gap | Result | Artifact |
+|---|---|---|
+| ~230 non-chunk assets not extracted | **168 of 169 zstd frames extracted** (11.28 MB; 135 of them Claude-side) — about **59%** coverage: 11 plugin skill bodies (previously only registration metadata was visible in JS; the bodies really do live only in these assets), a **573 KB TypeScript declaration of the function-hooks plugin API**, the 317 KB Model Migration Guide, whiteboard HTML, and vendored mermaid / highlight.js / Chart.js / PSL. **What remains are the uncompressed siblings between frames** (fonts, prompt documents, `audio-capture.node`, ~4.7 MB) | [`verify/REPORT-assets.en.md`](verify/REPORT-assets.en.md) |
+| hooks-worker mechanics unfound | It is not a socket: a **`Worker` thread plus two `SharedArrayBuffer`s** (`stamp` / `marks`) coordinated with `Atomics.load`; heartbeat, six kinds of in-flight counters, timeout fallback, and **module hot-reload** | [`verify/REPORT-hook-ipc.en.md`](verify/REPORT-hook-ipc.en.md) |
+| What function hooks actually are | A **genuinely wired subsystem** (flag `tengu_plugin_hooks_modules` defaults on): plugins run in a **VM-level sandbox** inside a dedicated Worker (frozen `codeGeneration:{strings:false,wasm:false}`, 13 whitelisted globals, `import()` rejected twice); **136 hook points** (43 engine-own + 33 classic + 60 `$`-call — the earlier "33" was only the classic tier); the `$.ui.resolve` UI model across four surfaces; the `claude-code/testing` kit and `claude plugin test/validate`; **10 built-in plugins already use it** | [`verify/REPORT-plugin-api.en.md`](verify/REPORT-plugin-api.en.md) |
+| Sandbox default allow-set unreconstructed | `sandbox.enabled` **defaults to false**; once on, reads stay allow-all while writes become allow-list + a **built-in write-deny list** (shell rc files, `.git/config`, `.git/hooks`, `.mcp.json`, `.vscode`/`.idea`, **`.claude/commands` and `.claude/agents`**); project settings cannot escalate | [`verify/REPORT-sandbox.en.md`](verify/REPORT-sandbox.en.md) |
+| 3 decompilations timed out | Raising the per-function budget from 90 s to 400 s recovered all three: **5,217/5,217**; plus the `chicago*` native API family (ScreenCaptureKit capture, per-app exclusion, display preparation) | [`verify/REPORT-ghidra.en.md`](verify/REPORT-ghidra.en.md) §10 |
+| Memory daily-log writer / `/remember` | Still **not found** among the 168 extracted assets — kept as "not found" | — |
+
+Still unsolved, stated plainly: **JSC bytecode** is a Bun-private format (no standard JSC bytecode header is present, and no public decompiler exists) — only the completeness check was done; the **interactive TUI** cannot be exercised here (the environment runs out of pty devices); the **Linux sandbox branch** (`bwrap`/`seccomp`) is unread; the main binary's `__TEXT` (Bun runtime) was not analysed.

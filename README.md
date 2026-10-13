@@ -322,3 +322,20 @@ microcompact 的参数写死在一张小表里（可读、可改、可审）：`
 - `audio-capture.node`：**CoreAudio**（`AudioUnit`/`AudioObject`），不是 ScreenCaptureKit；JS 侧按 `vendor/audio-capture/<arch>-<platform>/` 加载。
 
 两层的分工：Swift 层负责"操作哪个元素、能不能操作、结果怎么讲清楚"，Rust 层负责"把事件真的发出去"。JS 侧（`chunks2/0788__chunk-c8t4wb5r.js`）读完结果后调 `setPhantomCursor(...)` 并把元素祖先链写进给模型的观察文本——**computer-use 的实现确实不在 JS 里**。
+
+---
+
+## 13. 第二轮补挖：把"未完成"清单逐条清掉（2026-10-14 晚）
+
+第一轮报告里留了 6 项已知识缺口，这一轮逐条处理：
+
+| 原缺口 | 结果 | 产物 |
+|---|---|---|
+| 约 230 个非 chunk 资源未提取 | **168/169 个 zstd 帧解出**（11.28 MB，其中 Claude 侧 135 个）——覆盖约 **59%**：11 份插件技能正文（此前只在 JS 里看到注册元数据，正文确实只存在于这些资源里）、**573 KB 的 function-hooks 插件 API 类型声明**、Model Migration Guide（317 KB）、白板 HTML、mermaid/highlight.js/Chart.js/PSL。**剩余未落盘的是帧间的未压缩兄弟资源**（字体、提示词文档、`audio-capture.node` 等，约 4.7 MB） | [`verify/REPORT-assets.md`](verify/REPORT-assets.md) |
+| hooks-worker 本体/机制未找到 | 不再是 socket：**`Worker` 线程 + 两块 `SharedArrayBuffer`**（`stamp` / `marks`）用 `Atomics.load` 协调；有心跳、六类在途计数、超时兜底与**模块热重载** | [`verify/REPORT-hook-ipc.md`](verify/REPORT-hook-ipc.md) |
+| function hooks 到底是什么 | **真正接线的子系统**（灰度 `tengu_plugin_hooks_modules` 默认开）：插件跑在独立 Worker 里的 **VM 级沙箱**（冻结的 `codeGeneration:{strings:false,wasm:false}`、13 个白名单 global、`import()` 双重拒绝）；**可挂事件面 136 个**（引擎自有 43 + classic 33 + `$` 调用 60 —— 之前报告的"33 个"只是 classic 那一档）；`$.ui.resolve` 的四种 surface UI 模型；`claude-code/testing` 套件与 `claude plugin test/validate`；二进制里**已有 10 个内置插件**用它写 | [`verify/REPORT-plugin-api.md`](verify/REPORT-plugin-api.md) |
+| sandbox profile 默认放行集合未还原 | `sandbox.enabled` **默认 false**；开启后读默认全放行、写改为白名单 + **内置禁写清单**（shell 启动文件、`.git/config`、`.git/hooks`、`.mcp.json`、`.vscode`/`.idea`、**`.claude/commands` 与 `.claude/agents`**）；项目设置不能自我提权 | [`verify/REPORT-sandbox.md`](verify/REPORT-sandbox.md) |
+| 3 个函数反编译超时 | 把单函数预算 90 s → 400 s 后全部成功：**5,217/5,217**；并补记 `chicago*` 一族原生 API（ScreenCaptureKit 截图、按 App 排除、显示器准备） | [`verify/REPORT-ghidra.md`](verify/REPORT-ghidra.md) §10 |
+| 记忆 daily log 写入端 / `/remember` 定义 | 在解出的 168 个资源里**仍然没有** —— 保持"未找到" | — |
+
+仍然没解决的（如实记录）：**JSC 字节码**是 Bun 私有格式（不是标准 JSC 字节码文件，扫不到它的文件头），无公开反编译器，只做了完整性对照；**交互式 TUI** 无法实测（本环境 pty 设备耗尽）；**Linux 沙箱分支**（`bwrap`/`seccomp`）未读；主二进制 `__TEXT`（Bun 运行时）未分析。

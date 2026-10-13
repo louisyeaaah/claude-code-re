@@ -34,7 +34,9 @@ The decompilation script: [`ghidra-scripts/DumpDecomp.java`](../ghidra-scripts/D
 |---|---|---|---|---|
 | `libComputerUseSwift.dylib` (arm64) | `work/embedded/macho1.bin` | 2,817 | 2,817 | 4.3 MB C |
 | `libcomputer_use_input.dylib` (arm64) | `work/embedded/macho5.bin` | 1,821 | 1,819 | 4.0 MB C |
-| `audio-capture.node` (arm64) | `work/embedded/macho6.bin` | 579 | 578 | 2.1 MB C |
+| `audio-capture.node` (arm64) | `work/embedded/macho6.bin` | 579 | **579** | 2.1 MB C |
+
+> Addendum (2026-10-14): the 3 functions that previously failed (2 in input, 1 in audio) were reporting a **decompile timeout**; after relaxing the per-function budget from 90 s to 400 s they **all succeeded** — that is, 5,217/5,217 decompiled in full. All 3 are unnamed runtime functions (`FUN_*`, with type-propagation warnings) and add nothing to the product conclusions.
 
 Ghidra 12 has built-in **Swift name recovery** (the analysis log even shows `Swift Type Metadata Analyzer`), so those 2,817 Swift function names are readable (things like `ComputerUseSwift.AXDispatch.typeText(in:)`) — its single biggest advantage over `nm`/r2.
 
@@ -124,3 +126,24 @@ for pair in "cua macho1" "input macho5" "audio macho6"; do
 done
 grep "^// ====" out/cua-all.txt | head        # function list (Swift names recovered)
 ```
+
+## 10. Addendum: `chicago*` — the family name of the computer-use native API
+
+Searching the binary for the `chicago` prefix shows that it is an entire family of **native method names exposed by ObjC to JS** (not an internal codename but real API names):
+
+```
+chicagoCaptureRegion         chicagoCaptureExcluding        chicagoPrepareDisplay
+chicagoResolvePrepareCapture chicagoListInstalled           chicagoListInstalledWithRunning
+chicago-hide / chicago-open (a pair of strings inside a Swift closure)
+```
+
+Strings in the same region reveal the implementation details:
+
+- It goes through **ScreenCaptureKit**: `ScreenCaptureKit requires macOS 14.0`, `Region capture returned nil (permission missing or SCContentFilter failure)`
+- Screenshots are returned as a **JPEG base64 data URL**: `data:image/jpeg;base64,`
+- The parameter contract is written into the error text: `captureRegion: expected (allowedBundleIds, regionX, regionY, regionW, regionH, outputWidth, outputHeight)`, `resolveBundleIds: expected names: string[]`
+- `com.apple.finder` is exempted by default; a missing permission has its own text, `Screen Recording permission not granted`
+
+In other words: beyond `PhantomCursor` / `AXDispatch` / `CollisionWatch` there is another layer of **interfaces aimed at "looking at the screen"** (region capture, excluding given apps, display preparation, installed-app listing), and "which apps should be kept out of the frame" is made into a parameter.
+
+> Still not verified: the correspondence between these methods and their call sites on the JS side (the same strings cannot be found in the JS corpus, which suggests they are bridged dynamically through the ObjC runtime), and the exact purpose of `chicagoRegister/Unregister/NotifyExpectedEscapeMethod` — **inferred** to relate to the "interrupt / escape" mechanism.

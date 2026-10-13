@@ -32,7 +32,9 @@ GH=/opt/homebrew/Cellar/ghidra/12.1.4/libexec/support/analyzeHeadless
 |---|---|---|---|---|
 | `libComputerUseSwift.dylib`（arm64） | `work/embedded/macho1.bin` | 2,817 | 2,817 | 4.3 MB C |
 | `libcomputer_use_input.dylib`（arm64） | `work/embedded/macho5.bin` | 1,821 | 1,819 | 4.0 MB C |
-| `audio-capture.node`（arm64） | `work/embedded/macho6.bin` | 579 | 578 | 2.1 MB C |
+| `audio-capture.node`（arm64） | `work/embedded/macho6.bin` | 579 | **579** | 2.1 MB C |
+
+> 2026-10-14 补记：先前 3 个函数（input 2 个、audio 1 个）报的是 **decompile timeout**，把单函数预算从 90 s 放宽到 400 s 后**全部成功**——即 5,217/5,217 全部反编译完成。这 3 个都是无名运行时函数（`FUN_*`，带类型传播警告），对产品结论无增量。
 
 Ghidra 12 内置 **Swift 名字还原**（分析日志里就有 `Swift Type Metadata Analyzer`），所以 Swift 那 2817 个函数名是可读的（`ComputerUseSwift.AXDispatch.typeText(in:)` 这种），这是它相对 `nm`/r2 的最大优势。
 
@@ -122,3 +124,24 @@ for pair in "cua macho1" "input macho5" "audio macho6"; do
 done
 grep "^// ====" out/cua-all.txt | head        # 函数清单（Swift 名已还原）
 ```
+
+## 10. 补记：`chicago*` —— computer-use 原生 API 的家族名
+
+在二进制里检索 `chicago` 前缀，发现它是一整族 **ObjC 暴露给 JS 的原生方法名**（不是内部代号，而是真实 API 名字）：
+
+```
+chicagoCaptureRegion         chicagoCaptureExcluding        chicagoPrepareDisplay
+chicagoResolvePrepareCapture chicagoListInstalled           chicagoListInstalledWithRunning
+chicago-hide / chicago-open（Swift 闭包里的字符串对）
+```
+
+同一段里的字符串揭示了实现细节：
+
+- 走 **ScreenCaptureKit**：`ScreenCaptureKit requires macOS 14.0`、`Region capture returned nil (permission missing or SCContentFilter failure)`
+- 截图以 **JPEG base64 data URL** 回传：`data:image/jpeg;base64,`
+- 参数契约写成错误文案：`captureRegion: expected (allowedBundleIds, regionX, regionY, regionW, regionH, outputWidth, outputHeight)`、`resolveBundleIds: expected names: string[]`
+- 默认豁免 `com.apple.finder`；权限缺失有专门文案 `Screen Recording permission not granted`
+
+也就是说：在 `PhantomCursor` / `AXDispatch` / `CollisionWatch` 之外，还有一层**面向"看屏幕"的接口**（区域截图、排除指定 App、显示器准备、已安装 App 列表），并把"哪些 App 该被排除在画面外"做成参数。
+
+> 仍未验证：这些方法与 JS 侧调用点的对应关系（JS 语料里搜不到同名字符串，说明经 ObjC runtime 动态桥接），以及 `chicagoRegister/Unregister/NotifyExpectedEscapeMethod` 的确切用途——**推断**与"中断/逃生"机制有关。

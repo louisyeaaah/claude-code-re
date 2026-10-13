@@ -36,6 +36,7 @@
     <li><a href="#evolution">跨六版演化</a></li>
     <li><a href="#native">原生层与 Ghidra</a></li>
     <li><a href="#lessons">可迁移清单</a></li>
+    <li><a href="#round2">第二轮补挖</a></li>
     <li><a href="#limits">局限与未完成</a></li>
   </ol>
 </aside>
@@ -112,6 +113,7 @@ python3 tools/census.py               # 全库提示词句式统计</code></pre>
 </figure>
 <table>
   <thead><tr><th>句式</th><th>例子</th></tr></thead>
+/thead>
   <tbody>
     <tr><td>禁令 + 例外</td><td><code>No model turn unless the plugin asks for one.</code></td></tr>
     <tr><td>禁止 + 替代</td><td><code>Prefer the Edit tool for modifying existing files — it only sends the diff.</code></td></tr>
@@ -238,6 +240,23 @@ python3 tools/census.py               # 全库提示词句式统计</code></pre>
   </div>
 </div>
 
+<h2 id="round2">第二轮补挖：把"未完成"逐条清掉</h2>
+<p>第一轮留了 6 项已知识缺口，这一轮逐条处理——其中 5 项有结果，1 项仍然是"找不到"。</p>
+<table>
+  <thead><tr><th>原缺口</th><th>结果</th></tr></thead>
+  <tbody>
+    <tr><td>231 个非 chunk 资源未提取</td><td><b>168/169 个 zstd 帧解出</b>（11.28 MB，Claude 侧 135 个，覆盖约 59%）：11 份插件技能正文（此前 JS 里只有注册元数据）、<b>573 KB 的 function-hooks 插件 API 类型声明</b>、317 KB 的 Model Migration Guide、白板 HTML、mermaid / highlight.js / Chart.js 等；剩余是帧间的未压缩兄弟资源（字体、提示词文档、<code>audio-capture.node</code>，约 4.7 MB）</td></tr>
+    <tr><td>hooks-worker 机制未找到</td><td>不是 socket：<b>Worker 线程 + 两块 SharedArrayBuffer</b>（<code>stamp</code>/<code>marks</code>）用 <code>Atomics.load</code> 协调，带心跳、六类在途计数、超时兜底与<b>模块热重载</b></td></tr>
+    <tr><td>function hooks 是什么</td><td><b>真正接线</b>（灰度默认开）：独立 Worker 里的 <b>VM 级沙箱</b>（冻结全局、13 个白名单、<code>import()</code> 双重拒绝）；<b>可挂事件面 136 个</b>（引擎 43 + classic 33 + <code>$</code> 调用 60）；四种 surface UI 模型；<code>claude-code/testing</code> 套件；二进制里已有 <b>10 个内置插件</b>用它写</td></tr>
+    <tr><td>沙箱默认放行集合未还原</td><td><code>sandbox.enabled</code> <b>默认 false</b>；开启后读默认全放行、写变白名单 + <b>内置禁写清单</b>（shell 启动文件、<code>.git/config</code>、<code>.git/hooks</code>、<code>.mcp.json</code>、<code>.vscode</code>/<code>.idea</code>、<b><code>.claude/commands</code> 与 <code>.claude/agents</code></b>）；项目设置不能自我提权</td></tr>
+    <tr><td>3 个函数反编译超时</td><td>预算 90 s → 400 s 后全部成功：<b>5,217/5,217</b>；并补记 <code>chicago*</code> 原生 API 家族（ScreenCaptureKit 截图、按 App 排除、显示器准备）</td></tr>
+    <tr><td>记忆 daily log 写入端 / <code>/remember</code></td><td>在解出的 168 个资源里<b>仍然没有</b>——保持"未找到"</td></tr>
+  </tbody>
+</table>
+<div class="card warn">
+  <b>仍然没解决的：</b>JSC 字节码是 Bun 私有格式（扫不到标准字节码头，也没有公开反编译器），只做了完整性对照；交互式 TUI 无法实测（本环境 pty 设备耗尽）；Linux 沙箱分支（<code>bwrap</code>/<code>seccomp</code>）未读；主二进制 <code>__TEXT</code>（Bun 运行时）未分析。
+</div>
+
 <h2 id="limits">局限与未完成</h2>
 <ul>
   <li>分析对象是<b>本机这一份构建</b>；不同账号/地区/灰度下的提示词可能不同。</li>
@@ -265,6 +284,10 @@ python3 tools/census.py               # 全库提示词句式统计</code></pre>
     <tr><td>跨版本演化</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/evolution/REPORT-evolution.md">REPORT-evolution.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/evolution/REPORT-evolution.en.md">(en)</a></td></tr>
     <tr><td>原生层与字节码</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-native.md">REPORT-native.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-native.en.md">(en)</a></td></tr>
     <tr><td>Ghidra 反编译</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-ghidra.md">REPORT-ghidra.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-ghidra.en.md">(en)</a></td></tr>
+    <tr><td>内嵌资源盘点</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-assets.md">REPORT-assets.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-assets.en.md">(en)</a></td></tr>
+    <tr><td>插件 API（function hooks）</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-plugin-api.md">REPORT-plugin-api.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-plugin-api.en.md">(en)</a></td></tr>
+    <tr><td>Hook IPC（worker + 共享内存）</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-hook-ipc.md">REPORT-hook-ipc.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-hook-ipc.en.md">(en)</a></td></tr>
+    <tr><td>沙箱与默认放行集合</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-sandbox.md">REPORT-sandbox.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-sandbox.en.md">(en)</a></td></tr>
   </tbody>
 </table>
 

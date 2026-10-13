@@ -36,6 +36,7 @@
     <li><a href="#evolution">Six releases</a></li>
     <li><a href="#native">Native layer &amp; Ghidra</a></li>
     <li><a href="#lessons">What to steal</a></li>
+    <li><a href="#round2">Second pass</a></li>
     <li><a href="#limits">Limits</a></li>
   </ol>
 </aside>
@@ -238,6 +239,23 @@ python3 tools/census.py                          # corpus-wide phrasing statisti
   </div>
 </div>
 
+<h2 id="round2">Second pass: closing the "not yet done" list</h2>
+<p>Six gaps were left open in the first round; this pass works through them — five produced results, one is still "not found".</p>
+<table>
+  <thead><tr><th>Previous gap</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>231 non-chunk assets not extracted</td><td><b>168 of 169 zstd frames extracted</b> (11.28 MB, 135 Claude-side, ~59% coverage): 11 plugin skill bodies (JS only carried registration metadata), a <b>573 KB TypeScript declaration of the function-hooks plugin API</b>, the 317 KB Model Migration Guide, whiteboard HTML, vendored mermaid / highlight.js / Chart.js; what remains are the uncompressed siblings between frames (fonts, prompt documents, <code>audio-capture.node</code>, ~4.7 MB)</td></tr>
+    <tr><td>hooks-worker mechanics unfound</td><td>Not a socket: a <b>Worker thread plus two SharedArrayBuffers</b> (<code>stamp</code>/<code>marks</code>) coordinated with <code>Atomics.load</code>, with heartbeat, six kinds of in-flight counters, timeout fallback and <b>module hot-reload</b></td></tr>
+    <tr><td>What function hooks actually are</td><td><b>Genuinely wired</b> (flag defaults on): a <b>VM-level sandbox</b> in a dedicated Worker (frozen globals, 13 whitelisted, <code>import()</code> rejected twice); <b>136 hook points</b> (43 engine + 33 classic + 60 <code>$</code>-call); the four-surface UI model; the <code>claude-code/testing</code> kit; <b>10 built-in plugins</b> already use it</td></tr>
+    <tr><td>Sandbox default allow-set unreconstructed</td><td><code>sandbox.enabled</code> <b>defaults to false</b>; once on, reads stay allow-all while writes become allow-list + a <b>built-in write-deny list</b> (shell rc files, <code>.git/config</code>, <code>.git/hooks</code>, <code>.mcp.json</code>, <code>.vscode</code>/<code>.idea</code>, <b><code>.claude/commands</code> and <code>.claude/agents</code></b>); project settings cannot escalate</td></tr>
+    <tr><td>3 decompilations timed out</td><td>Raising the budget from 90 s to 400 s recovered all three: <b>5,217/5,217</b>; plus the <code>chicago*</code> native API family (ScreenCaptureKit capture, per-app exclusion, display preparation)</td></tr>
+    <tr><td>Memory daily-log writer / <code>/remember</code></td><td>Still <b>not found</b> among the 168 extracted assets</td></tr>
+  </tbody>
+</table>
+<div class="card warn">
+  <b>Still unsolved:</b> JSC bytecode is a Bun-private format (no standard header, no public decompiler) — only the completeness check was done; the interactive TUI cannot be exercised here (no pty devices left); the Linux sandbox branch (<code>bwrap</code>/<code>seccomp</code>) is unread; the main binary's <code>__TEXT</code> (Bun runtime) was not analysed.
+</div>
+
 <h2 id="limits">Limits</h2>
 <ul>
   <li>The target is <b>this one local build</b>; prompts may differ by account, region or rollout.</li>
@@ -265,6 +283,10 @@ python3 tools/census.py                          # corpus-wide phrasing statisti
     <tr><td>Version evolution</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/evolution/REPORT-evolution.en.md">report (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/evolution/REPORT-evolution.md">report</a></td></tr>
     <tr><td>Native layer</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-native.en.md">report (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-native.md">report</a></td></tr>
     <tr><td>Ghidra decompilation</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-ghidra.en.md">report (en)</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-ghidra.md">report</a></td></tr>
+    <tr><td>Asset inventory</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-assets.en.md">REPORT-assets.en.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-assets.md">report</a></td></tr>
+    <tr><td>Plugin API (function hooks)</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-plugin-api.en.md">REPORT-plugin-api.en.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-plugin-api.md">report</a></td></tr>
+    <tr><td>Hook IPC (worker + shared memory)</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-hook-ipc.en.md">REPORT-hook-ipc.en.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-hook-ipc.md">report</a></td></tr>
+    <tr><td>Sandbox and default allow-set</td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-sandbox.en.md">REPORT-sandbox.en.md</a></td><td><a href="https://github.com/louisyeaaah/claude-code-re/blob/main/verify/REPORT-sandbox.md">report</a></td></tr>
   </tbody>
 </table>
 
