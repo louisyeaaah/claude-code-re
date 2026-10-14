@@ -144,7 +144,7 @@ chicago-hide / chicago-open（Swift 闭包里的字符串对）
 
 也就是说：在 `PhantomCursor` / `AXDispatch` / `CollisionWatch` 之外，还有一层**面向"看屏幕"的接口**（区域截图、排除指定 App、显示器准备、已安装 App 列表），并把"哪些 App 该被排除在画面外"做成参数。
 
-> 仍未验证：这些方法与 JS 侧调用点的对应关系（JS 语料里搜不到同名字符串，说明经 ObjC runtime 动态桥接），以及 `chicagoRegister/Unregister/NotifyExpectedEscapeMethod` 的确切用途——**推断**与"中断/逃生"机制有关。
+> **2026-10-14 更正**：上面两个"未验证"已被 §13 推翻/落实——`chicago*` 是 Swift 侧命名前缀，N-API 注册后 JS 侧看到的是 `computerUse.<命名空间>.<方法>`（所以 JS 里 grep 不到 `chicago` 是设计如此，不是动态桥接）；Escape 三兄弟是一个 **CGEventTap**（拦截用户的 Escape 中断键），详见 §13。
 
 ## 11. 补记：反编译"失败"的两类原因（附 Ghidra 源码依据）
 
@@ -218,3 +218,63 @@ Ghidra 源码依据（随安装包一起提供 C++ 源码）：
 **结论三：还有一个被证伪的猜想。** 我一度怀疑跳转表失败是因为 Mach-O 指针未重定位。解析 `LC_DYLD_INFO_ONLY` 的 rebase 流后：macho1 有 1,797 个待重定位槽，但它们在磁盘上的值（如 `0x7851c`）本来就是**该镜像基址下的合法 vmaddr**（arm64 Mach-O 在加载时加 slide，文件里存的是 slide 前地址）⇒ **不是重定位问题**，与结论一一致。
 
 **复现**：`bash tools/run_ghidra_max.sh`（约 15 分钟，产出 `out/max-{cua,input,audio}.txt`），对比脚本 `tools/compare_ghidra_runs.py`、`tools/diff_decomp_runs.py`。
+
+## 13. 更正与补全：`chicago*` 到底是什么
+
+§10 里我把它写成"computer-use 原生 API 的家族名"，并说"JS 里搜不到同名字符串，说明经 ObjC 动态桥接"——**后半句是错的**。查清之后：
+
+### 13.1 `chicago` 是 Swift 侧的命名前缀，JS 永远看不到它
+
+`computer-use-swift.node` = 本报告分析的 `libComputerUseSwift.dylib`（同一个二进制，作为 Node 插件加载）。JS 侧的加载只有一行（`raw/chunks2/0010__chunk-qgr6wbcc.js`）：
+
+```js
+e.exports = Ie("/$bunfs/root/computer-use-swift.node")
+```
+
+真正干活的胶水在 `raw/chunks2/0570__chunk-gpxgcvxm.js` 与 `0785__chunk-sp8fhvab.js`：
+
+```js
+var c = v(function(E, s) { var n = Zzr(); s.exports = n.computerUse });   // 取 .computerUse
+let { apps } = await lle(() => r.apps.listInstalled(), 1000);             // 命名空间式调用
+await r.apps.prepareDisplay(...);  r.screenshot.captureRegion(...);  r.hotkey.registerEscape(cb)
+e._drainMainRunLoop()                                                     // 由 JS 用 setInterval(…,1) 泵
+```
+
+所以：**Swift 侧每个方法叫 `chicago<动词><名词>Method`，N-API 注册时映射成 JS 侧的 `computerUse.<命名空间>.<方法>`**。在 JS 语料里 grep `chicago` 命中 0 是设计如此，不是动态桥接。
+
+### 13.2 整个家族（按用途，一手符号）
+
+| 用途 | Swift 符号（节选） | JS 面名字 |
+|---|---|---|
+| 截图 | `chicagoCaptureRegionMethod`、`chicagoCaptureExcludingMethod` | `screenshot.captureRegion` / `captureExcluding` |
+| 显示器/窗口 | `chicagoPrepareDisplayMethod`、`chicagoResolvePrepareCaptureMethod`、`chicagoFindWindowDisplaysMethod`、`chicagoGetDisplaySizeMethod`、`chicagoListDisplaysMethod` | 去前缀同名 |
+| App 枚举/控制 | `chicagoListInstalledMethod`、`chicagoListRunningMethod`、`chicagoOpenAppMethod`、`chicagoUnhideMethod`、`chicagoHideMethod`、`chicagoIconDataUrlMethod` | `apps.*` |
+| 干扰控制 | `chicagoDefocusSystemApps`、`chicagoHitTestSkipBundleIds`、`chicagoPreviewHideSetMethod`、`chicagoAppUnderPointMethod` | `apps.previewHideSet` / `appUnderPoint` |
+| 运行循环 | `chicagoDrainMainRunLoopMethod` | `_drainMainRunLoop` |
+| 异步桥 | `chicagoPromiseCallJs`、`ChicagoPromisePayload`、`ChicagoPromiseData` | —（内部） |
+| Escape 热键 | `chicagoRegisterEscapeMethod`、`chicagoUnregisterEscapeMethod`、`chicagoNotifyExpectedEscapeMethod` | `hotkey.registerEscape` |
+
+### 13.3 "escape method" 三兄弟 = 一个 **CGEventTap**
+
+原生符号给出了确切类型签名：
+
+```
+ComputerUseSwift.escTapCallback(_ proxy: CGEventTapProxy?, type: CGEventType,
+                                event: CGEventRef, userInfo: Unmanaged<CGEventRef>?) -> Unmanaged<CGEventRef>?
+ComputerUseSwift.escHotkeyTeardown
+```
+
+即 native 侧装了一个 **Quartz 事件 tap** 拦截 Escape（用户"让 agent 停下"的键）。JS 侧对应：
+
+```js
+function Bwo(e){ if (Fh().escHotkeyRegistered) return !0;
+  if (!Y$().hotkey.registerEscape(e)) { …; p("computeruse_esc_register","tap_create_failed"); return !1 } … }
+```
+
+`RegisterEscape` 装 tap 并注册 JS 回调；`UnregisterEscape` 拆掉；`NotifyExpectedEscape` 告诉 native"下一个 Escape 是 agent 自己发的"——**避免被误判成用户中断**（agent 自己按 Esc 关菜单/弹层是常规操作）。
+
+> 这也把我此前的**推断**（"与逃生/中断机制有关"）落实成了机制：CGEventTap + 预期标记。
+
+### 13.4 名字本身
+
+二进制里没有任何词源线索，只能确认它是**内部代号**，风格与仓库里其它代号一致（`tengu_silent_harbor`、`tengu_heron_brook`、`pewter_owl`…）。**未找到**任何解释性字符串。

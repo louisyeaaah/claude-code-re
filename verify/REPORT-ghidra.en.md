@@ -146,7 +146,7 @@ Strings in the same region reveal the implementation details:
 
 In other words: beyond `PhantomCursor` / `AXDispatch` / `CollisionWatch` there is another layer of **interfaces aimed at "looking at the screen"** (region capture, excluding given apps, display preparation, installed-app listing), and "which apps should be kept out of the frame" is made into a parameter.
 
-> Still not verified: the correspondence between these methods and their call sites on the JS side (the same strings cannot be found in the JS corpus, which suggests they are bridged dynamically through the ObjC runtime), and the exact purpose of `chicagoRegister/Unregister/NotifyExpectedEscapeMethod` — **inferred** to relate to the "interrupt / escape" mechanism.
+> **Corrected 2026-10-14**: both items above are resolved or overturned in §13 — `chicago*` is a Swift-side naming prefix, and after N-API registration JS sees `computerUse.<namespace>.<method>` (so finding no `chicago` string in JS is by design, not dynamic bridging); the escape trio is a **CGEventTap** intercepting the user's Escape interrupt key.
 
 ## 11. Addendum: why decompilation "failed" — two different causes (with Ghidra source evidence)
 
@@ -220,3 +220,63 @@ The differences fall into two kinds, **both spot-checked**:
 **Finding 3: one hypothesis refuted.** I suspected the jump-table failures came from unrelocated Mach-O pointers. Decoding the `LC_DYLD_INFO_ONLY` rebase stream: macho1 has 1,797 slots needing rebasing, but their on-disk values (e.g. `0x7851c`) are already **valid pre-slide vmaddrs for a base-0 image** (arm64 Mach-O adds the slide at load time) ⇒ **not a relocation problem**, consistent with Finding 1.
 
 **Reproduce**: `bash tools/run_ghidra_max.sh` (~15 minutes, writes `out/max-{cua,input,audio}.txt`); comparison via `tools/compare_ghidra_runs.py` and `tools/diff_decomp_runs.py`.
+
+## 13. Correction and completion: what `chicago*` actually is
+
+In §10 I described it as "the family name of the computer-use native API" and added that "JS contains no matching string, so it must go through ObjC dynamic bridging" — **the second half was wrong**. What it really is:
+
+### 13.1 `chicago` is a Swift-side naming prefix that JS never sees
+
+`computer-use-swift.node` is the very `libComputerUseSwift.dylib` analysed here (the same binary, loaded as a Node addon). The JS-side loader is one line (`raw/chunks2/0010__chunk-qgr6wbcc.js`):
+
+```js
+e.exports = Ie("/$bunfs/root/computer-use-swift.node")
+```
+
+The real glue lives in `raw/chunks2/0570__chunk-gpxgcvxm.js` and `0785__chunk-sp8fhvab.js`:
+
+```js
+var c = v(function(E, s) { var n = Zzr(); s.exports = n.computerUse });   // take .computerUse
+let { apps } = await lle(() => r.apps.listInstalled(), 1000);             // namespace-style calls
+await r.apps.prepareDisplay(...);  r.screenshot.captureRegion(...);  r.hotkey.registerEscape(cb)
+e._drainMainRunLoop()                                                     // pumped by JS via setInterval(…, 1)
+```
+
+So: **each Swift method is named `chicago<Verb><Noun>Method`, and N-API registration maps it to `computerUse.<namespace>.<method>` on the JS side**. Grepping `chicago` across the JS corpus returns zero hits by design, not because of dynamic bridging.
+
+### 13.2 The whole family (by purpose, first-hand symbols)
+
+| Purpose | Swift symbol (excerpt) | JS-facing name |
+|---|---|---|
+| Screen capture | `chicagoCaptureRegionMethod`, `chicagoCaptureExcludingMethod` | `screenshot.captureRegion` / `captureExcluding` |
+| Display/window | `chicagoPrepareDisplayMethod`, `chicagoResolvePrepareCaptureMethod`, `chicagoFindWindowDisplaysMethod`, `chicagoGetDisplaySizeMethod`, `chicagoListDisplaysMethod` | same, minus the prefix |
+| App enumeration/control | `chicagoListInstalledMethod`, `chicagoListRunningMethod`, `chicagoOpenAppMethod`, `chicagoUnhideMethod`, `chicagoHideMethod`, `chicagoIconDataUrlMethod` | `apps.*` |
+| Interference control | `chicagoDefocusSystemApps`, `chicagoHitTestSkipBundleIds`, `chicagoPreviewHideSetMethod`, `chicagoAppUnderPointMethod` | `apps.previewHideSet` / `appUnderPoint` |
+| Run loop | `chicagoDrainMainRunLoopMethod` | `_drainMainRunLoop` |
+| Async bridge | `chicagoPromiseCallJs`, `ChicagoPromisePayload`, `ChicagoPromiseData` | — (internal) |
+| Escape hotkey | `chicagoRegisterEscapeMethod`, `chicagoUnregisterEscapeMethod`, `chicagoNotifyExpectedEscapeMethod` | `hotkey.registerEscape` |
+
+### 13.3 The "escape method" trio is a **CGEventTap**
+
+The native symbols give the exact type signature:
+
+```
+ComputerUseSwift.escTapCallback(_ proxy: CGEventTapProxy?, type: CGEventType,
+                                event: CGEventRef, userInfo: Unmanaged<CGEventRef>?) -> Unmanaged<CGEventRef>?
+ComputerUseSwift.escHotkeyTeardown
+```
+
+In other words the native side installs a **Quartz event tap** to intercept Escape — the user's "stop the agent" key. The JS side matches:
+
+```js
+function Bwo(e){ if (Fh().escHotkeyRegistered) return !0;
+  if (!Y$().hotkey.registerEscape(e)) { …; p("computeruse_esc_register","tap_create_failed"); return !1 } … }
+```
+
+`RegisterEscape` installs the tap and registers a JS callback; `UnregisterEscape` tears it down; `NotifyExpectedEscape` tells native that **the next Escape is one the agent is sending itself** — so it is not mistaken for a user interrupt (an agent pressing Esc to dismiss a menu or popover is routine).
+
+> This also upgrades my earlier *inference* ("probably related to an escape/interrupt mechanism") into a confirmed mechanism: CGEventTap plus an expectation flag.
+
+### 13.4 About the name itself
+
+Nothing in the binary hints at an etymology; it is an internal codename, in the same style as the codebase's other codenames (`tengu_silent_harbor`, `tengu_heron_brook`, `pewter_owl`, …). **No explanatory string was found.**
